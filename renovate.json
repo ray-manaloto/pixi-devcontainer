@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "docker:pinDigests"],
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "groupName": "non-major-dependencies"
+    }
+  ],
+  "regexManagers": [
+    {
+      "description": "Conda dependencies in pixi.toml",
+      "fileMatch": ["^pixi\\.toml$"],
+      "matchStrings": [
+        "\\[(dependencies|feature\\.[^\\]]+\\.dependencies)\\][\\s\\S]*?(?<depName>[A-Za-z0-9_.+-]+)\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "conda",
+      "registryUrls": ["https://conda.anaconda.org/conda-forge"]
+    },
+    {
+      "description": "PyPI dependencies in pixi.toml",
+      "fileMatch": ["^pixi\\.toml$"],
+      "matchStrings": [
+        "\\[feature\\.[^\\]]+\\.pypi-dependencies\\][\\s\\S]*?(?<depName>[A-Za-z0-9_.+-]+)\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "pypi"
+    },
+    {
+      "description": "Docker base image digests in bake file",
+      "fileMatch": ["^docker/docker-bake\\.hcl$"],
+      "matchStrings": [
+        "variable \"DIGEST_(?<depName>FOCAL|NOBLE)\" \\{ default = \"(?<currentValue>[^\"]+)\" \\}"
+      ],
+      "datasourceTemplate": "docker",
+      "packageNameTemplate": "ghcr.io/prefix-dev/pixi"
+    }
+  ]
+}

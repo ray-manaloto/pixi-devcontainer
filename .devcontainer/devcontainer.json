@@ -1,0 +1,28 @@
+{
+  "name": "C++ Dev Container",
+  "image": "ghcr.io/my-org/cpp:noble-stable-latest",
+
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt", "seccomp=unconfined",
+    "--network=host"
+  ],
+
+  "onCreateCommand": "pixi install -e dev-container || true",
+
+  "postCreateCommand": "/app/python_runtime -c \"import json; d=json.load(open('/app/pixi_env.json')); print('\\n'.join([f'export {k}=\\\"{v}\\\"' for k,v in d.items()]))\" > ~/.env_vars && echo 'source ~/.env_vars' >> ~/.bashrc || true",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "tamasfe.even-better-toml",
+        "charliermarsh.ruff"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/app/python_runtime"
+      }
+    }
+  }
+}

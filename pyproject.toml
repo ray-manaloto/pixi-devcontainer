@@ -1,0 +1,31 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# F=Pyflakes, E=Style, I=Isort, UP=Modernize, B=Bugbear, S=Bandit, C90=Complexity
+select = ["F", "E", "I", "UP", "B", "S", "C90"]
+# Allow subprocess in build scripts, assert in tests
+ignore = ["S603", "S607", "S606", "S101"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ty.environment]
+root = ["."]
+
+[tool.vulture]
+min_confidence = 80
+paths = ["scripts", "docker"]
+
+[tool.coverage.run]
+branch = true
+source = ["scripts"]
+omit = [
+    "scripts/validate_container.py",
+    "scripts/tests/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80

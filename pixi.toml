@@ -1,0 +1,89 @@
+[workspace]
+name = "cpp-matrix"
+version = "2025.1.0"
+channels = ["conda-forge"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
+
+[pypi-options]
+# uv is used automatically for PyPI dependencies
+
+[dependencies]
+# Core build tools - always latest
+cmake = "*"
+ninja = "*"
+python = ">=3.11"
+sccache = "*"
+
+# --- Feature: Automation (CI Tools) ---
+[feature.automation.dependencies]
+# Python SDKs
+boto3 = "*"
+docker-py = "*"
+rich = "*"
+
+# Quality Suite
+ruff = "*"
+vulture = "*"
+deptry = "*"
+pytest = "*"
+pytest-testinfra = "*"
+pytest-cov = "*"
+
+# Cross-platform linters
+typos = "*"
+# Note: hadolint and actionlint installed via brew/binary in CI
+
+[feature.automation.pypi-dependencies]
+ty = "*"
+
+# --- Feature: Compilers (GCC - latest stable) ---
+[feature.gcc.target.linux-64.dependencies]
+gcc = "*"
+gxx = "*"
+
+[feature.gcc.target.linux-aarch64.dependencies]
+gcc = "*"
+gxx = "*"
+
+# --- Feature: LLVM toolchain (latest) ---
+[feature.llvm.target.linux-64.dependencies]
+clang = "*"
+clangxx = "*"
+lld = "*"
+llvm-tools = "*"
+clang-tools = "*"
+
+[feature.llvm.target.linux-aarch64.dependencies]
+clang = "*"
+clangxx = "*"
+lld = "*"
+llvm-tools = "*"
+clang-tools = "*"
+
+[feature.llvm.target.osx-arm64.dependencies]
+clang = "*"
+clangxx = "*"
+lld = "*"
+llvm-tools = "*"
+clang-tools = "*"
+
+# --- Feature: Interactive Dev Tools ---
+[feature.dev.dependencies]
+gdb = "*"
+lcov = "*"
+starship = "*"
+bat = "*"
+ripgrep = "*"
+direnv = "*"
+
+# --- Environments ---
+[environments]
+automation = ["automation"]
+stable = ["gcc", "llvm"]
+dev-container = ["gcc", "llvm", "dev", "automation"]
+
+[tasks]
+validate = { cmd = "python -m scripts.validate", env = { PYTHONUNBUFFERED = "1" } }
+build = { cmd = "python -m scripts.build", env = { PYTHONUNBUFFERED = "1" } }
+update = { cmd = "pixi update && pixi install", description = "Update all dependencies to latest" }
+validate-container = { cmd = "python -m scripts.validate_container", env = { PYTHONUNBUFFERED = "1" }, description = "Build and validate devcontainer" }

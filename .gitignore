@@ -1,0 +1,14 @@
+.pixi/
+build/
+__pycache__/
+*.pyc
+*.egg-info/
+.env
+.coverage
+.pytest_cache/
+.ruff_cache/
+.vscode/
+*.DS_Store
+*.tar
+*.tar.gz
+pixi_env.json
