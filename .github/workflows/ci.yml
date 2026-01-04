@@ -86,24 +86,24 @@ jobs:
       - name: Summarize OCI artifacts
         run: |
           python - <<'PY'
-import json
-from pathlib import Path
+          import json
+          from pathlib import Path
 
-artifacts = []
-for tar in Path("build").glob("*.tar"):
-    stat = tar.stat()
-    artifacts.append(
-        {
-            "file": tar.name,
-            "size_bytes": stat.st_size,
-            "modified": stat.st_mtime,
-        },
-    )
-Path("artifacts/oci-metadata.json").write_text(
-    json.dumps({"images": artifacts}, indent=2),
-    encoding="utf-8",
-)
-PY
+          artifacts = []
+          for tar in Path("build").glob("*.tar"):
+              stat = tar.stat()
+              artifacts.append(
+                  {
+                      "file": tar.name,
+                      "size_bytes": stat.st_size,
+                      "modified": stat.st_mtime,
+                  },
+              )
+          Path("artifacts/oci-metadata.json").write_text(
+              json.dumps({"images": artifacts}, indent=2),
+              encoding="utf-8",
+          )
+          PY
       - name: Upload devcontainer OCI artifacts
         uses: actions/upload-artifact@v4
         with:
