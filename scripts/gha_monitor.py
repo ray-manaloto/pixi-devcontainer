@@ -20,9 +20,9 @@ import ssl
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
 from pathlib import Path
 
 STATE_DIR = Path(".gha")
@@ -89,10 +89,12 @@ def api_get(
         request = urllib.request.Request(
             url,
             headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        )
+        )  # noqa: S310
         with urllib.request.urlopen(  # nosemgrep
-            request, context=context, timeout=10
-        ) as response:
+            request,
+            context=context,
+            timeout=10,
+        ) as response:  # noqa: S310
             body = response.read().decode("utf-8")
             if response.status >= HTTP_ERROR_THRESHOLD:
                 sys.exit(f"GitHub API error {response.status}: {body}")
