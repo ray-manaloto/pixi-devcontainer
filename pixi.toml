@@ -91,7 +91,7 @@ except (FileNotFoundError, OSError) as exc:
 """
 lint-actionlint = "actionlint"
 lint-checkov = "checkov -d docker --quiet --compact"
-lint-uv = "uv pip check --project . --frozen"
+lint-uv = "uv pip check --project ."
 lint-pyrefly = "pyrefly check scripts"
 lint-taplo = "taplo format --check pixi.toml pyproject.toml"
 lint-yamllint = "yamllint .github .devcontainer"
