@@ -55,7 +55,9 @@ def default_branch() -> str:
     return git(["rev-parse", "--abbrev-ref", "HEAD"])
 
 
-def api_get(path: str, token: str, params: dict[str, str] | None = None) -> dict:  # pragma: no cover - network boundary
+def api_get(
+    path: str, token: str, params: dict[str, str] | None = None
+) -> dict:  # pragma: no cover - network boundary
     qs = f"?{urllib.parse.urlencode(params or {})}" if params else ""
     req = urllib.request.Request(
         f"{GITHUB_API}{path}{qs}",
@@ -81,7 +83,11 @@ def latest_run(repo: str, branch: str, token: str) -> dict | None:
 def store_run(run: dict) -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     with STATE_FILE.open("w", encoding="utf-8") as fh:
-        json.dump({"id": run["id"], "status": run["status"], "conclusion": run.get("conclusion")}, fh, indent=2)
+        json.dump(
+            {"id": run["id"], "status": run["status"], "conclusion": run.get("conclusion")},
+            fh,
+            indent=2,
+        )
     print(f"Stored run id {run['id']} to {STATE_FILE}")
 
 
@@ -103,10 +109,14 @@ def parse_args() -> argparse.Namespace:  # pragma: no cover - CLI wiring
     p = argparse.ArgumentParser(description="Monitor GitHub Actions runs")
     p.add_argument("--repo", default=None, help="owner/repo (default: from git remote)")
     p.add_argument("--branch", default=None, help="branch to check (default: current)")
-    p.add_argument("--store", action="store_true", help="store latest run id to .gha/latest_run.json")
+    p.add_argument(
+        "--store", action="store_true", help="store latest run id to .gha/latest_run.json"
+    )
     p.add_argument("--watch", action="store_true", help="watch run until completion")
     p.add_argument("--interval", type=int, default=15, help="poll interval seconds for watch mode")
-    p.add_argument("--run-id", type=int, default=None, help="specific run id to watch (default: latest)")
+    p.add_argument(
+        "--run-id", type=int, default=None, help="specific run id to watch (default: latest)"
+    )
     return p.parse_args()
 
 
@@ -120,7 +130,9 @@ def main() -> None:  # pragma: no cover
     if not run:
         sys.exit(f"No workflow runs found for {repo}@{branch}")
 
-    print(f"Latest run for {repo}@{branch}: id={run['id']} status={run['status']} conclusion={run.get('conclusion')}")
+    print(
+        f"Latest run for {repo}@{branch}: id={run['id']} status={run['status']} conclusion={run.get('conclusion')}"
+    )
 
     if args.store:
         store_run(run)
