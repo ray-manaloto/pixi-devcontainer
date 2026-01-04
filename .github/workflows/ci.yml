@@ -24,7 +24,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Hadolint (Dockerfile)
-        uses: hadolint/hadolint-action@6eff3b1b6c59df0e1c56f7f289fc5646e858e475 # v3.1.0
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
         with:
           dockerfile: docker/Dockerfile
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
