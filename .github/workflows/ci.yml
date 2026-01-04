@@ -4,6 +4,9 @@ permissions:
   contents: read
 
 name: Hybrid CI
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
@@ -22,6 +25,8 @@ jobs:
           persist-credentials: false
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
+          cache: true
+          locked: true
           environments: automation
       # Runs the full Strict Suite
       - run: pixi run -e automation validate
@@ -33,12 +38,16 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    env:
+      REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
+          cache: true
+          locked: true
           environments: automation
       - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
