@@ -131,11 +131,13 @@ def main() -> None:  # pragma: no cover
             check=True,
         )
 
-    if os.getenv("CI"):
+    if os.getenv("CI") and push_enabled:
         for os_n in ["focal", "noble"]:
             for env_n in ["stable"]:
                 tag = f"{os.getenv('REGISTRY', 'ghcr.io/my-org/cpp')}:{os_n}-{env_n}-{config_hash}"
                 upload_artifacts(config_hash, os_n, env_n, tag)
+    elif os.getenv("CI"):
+        console.log("Skipping artifact upload: push disabled", style="yellow")
 
 
 if __name__ == "__main__":
