@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""Run the full pre-push validation suite with zero tolerance for failures."""
+
+import logging
 import os
 import platform
 import shutil
@@ -7,6 +10,8 @@ import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # 🛡️ STRICT QUALITY GATE
 BASE_CHECKS: list[tuple[str, list[str]]] = [
@@ -74,17 +79,18 @@ def ensure_hadolint() -> bool:
         subprocess.run(["curl", "-sSL", "-o", str(dest), url], check=True)  # noqa: S603,S607
         dest.touch(exist_ok=True)
         dest.chmod(0o755)
-        os.environ["PATH"] = f"{dest_dir}:{os.environ.get('PATH', '')}"
-        return True
     except subprocess.CalledProcessError:
         # Leave PATH untouched if download fails; validation will report missing tool.
         return False
+
+    os.environ["PATH"] = f"{dest_dir}:{os.environ.get('PATH', '')}"
+    return True
 
 
 def list_shell_scripts() -> list[str]:
     """Return tracked shell scripts; skip vendored .pixi files."""
     try:
-        output = subprocess.check_output(["git", "ls-files", "*.sh"], text=True)  # noqa: S603,S607
+        output = subprocess.check_output(["git", "ls-files", "*.sh"], text=True)  # noqa: S607
     except subprocess.CalledProcessError:
         return []
     return [
@@ -95,13 +101,14 @@ def list_shell_scripts() -> list[str]:
 
 
 def build_checks() -> list[tuple[str, list[str]]]:
+    """Assemble the list of checks, adding optional ones when available."""
     checks = list(BASE_CHECKS)
 
     shell_files = list_shell_scripts()
     if shell_files:
         checks.append(("ShellCheck", ["shellcheck", *shell_files]))
     else:
-        print("ℹ️  ShellCheck skipped (no tracked shell scripts)")
+        logger.info("ShellCheck skipped (no tracked shell scripts)")
 
     checks.append(
         (
@@ -119,37 +126,40 @@ def build_checks() -> list[tuple[str, list[str]]]:
                 "--exclude",
                 "build",
             ],
-        )
+        ),
     )
     return checks
 
 
 def run_check(check: tuple[str, list[str]]) -> tuple[bool, str, str]:
+    """Run a single check and return (success, name, output)."""
     name, cmd = check
-    try:
-        if not shutil.which(cmd[0]):
-            if name.lower().startswith("hadolint"):
-                return True, name, "hadolint missing, skipped"
-            return False, name, f"Tool not found: {cmd[0]}"
-        res = subprocess.run(cmd, capture_output=True, text=True)  # noqa: S603
-        return res.returncode == 0, name, res.stdout + res.stderr
-    except Exception as e:  # pragma: no cover - defensive
+    if not shutil.which(cmd[0]):
         if name.lower().startswith("hadolint"):
-            return True, name, f"hadolint skipped: {e}"
-        return False, name, str(e)
+            return True, name, "hadolint missing, skipped"
+        return False, name, f"Tool not found: {cmd[0]}"
+    try:
+        res = subprocess.run(cmd, check=False, capture_output=True, text=True)  # noqa: S603
+    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover - defensive
+        if name.lower().startswith("hadolint"):
+            return True, name, f"hadolint skipped: {exc}"
+        return False, name, str(exc)
+    return res.returncode == 0, name, res.stdout + res.stderr
 
 
 def main() -> None:  # pragma: no cover
-    print("🛡️  Starting Zero-Tolerance Validation...")
+    """Run all validations and exit non-zero on any failure."""
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logger.info("Starting Zero-Tolerance Validation...")
     ensure_hadolint()
     failed = False
     checks = build_checks()
     with ThreadPoolExecutor() as exe:
         for success, name, out in exe.map(run_check, checks):
             if success:
-                print(f"✅ {name}")
+                logger.info("PASS %s", name)
             else:
-                print(f"❌ {name}:\n{out}")
+                logger.error("FAIL %s:\n%s", name, out)
                 failed = True
     sys.exit(1 if failed else 0)
 

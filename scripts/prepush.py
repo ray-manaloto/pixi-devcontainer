@@ -5,22 +5,21 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
 
 from rich.console import Console
 
 console = Console()
 
 
-def run(cmd: list[str], *, cwd: Path | None = None) -> None:
+def run(cmd: list[str], *, cwd: str | None = None) -> None:
     """Run a command, streaming output, raising on failure."""
     console.log(f"[cyan]$ {' '.join(cmd)}")
-    subprocess.run(cmd, check=True, cwd=cwd)  # noqa: S603,S607
+    subprocess.run(cmd, check=True, cwd=cwd)  # noqa: S603
 
 
 def ensure_clean_git() -> None:
     """Fail fast if the working tree is dirty."""
-    result = subprocess.check_output(["git", "status", "--porcelain"], text=True)  # noqa: S603,S607
+    result = subprocess.check_output(["git", "status", "--porcelain"], text=True)  # noqa: S607
     if result.strip():
         console.print("[red]❌ Working tree is dirty. Commit or stash changes before pushing.")
         console.print(result)
@@ -29,6 +28,7 @@ def ensure_clean_git() -> None:
 
 
 def main() -> None:
+    """Run pre-push validations and docker bake dry-run."""
     ensure_clean_git()
 
     # Run full validation (linters, static analysis, tests).

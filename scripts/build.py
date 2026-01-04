@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Build and publish devcontainer images with reproducible hashing."""
+
 import hashlib
 import os
 import subprocess
@@ -17,29 +19,32 @@ BASE_IMAGES = {
 
 def get_remote_digest(image: str) -> str:  # pragma: no cover - external docker call
     """Fetch upstream digest to ensure security updates trigger rebuilds."""
+    cmd = [
+        "docker",
+        "buildx",
+        "imagetools",
+        "inspect",
+        "--format",
+        "{{ (index .Manifest.Manifests 0).Digest }}",
+        image,
+    ]
     try:
-        cmd = [
-            "docker",
-            "buildx",
-            "imagetools",
-            "inspect",
-            "--format",
-            "{{ (index .Manifest.Manifests 0).Digest }}",
-            image,
-        ]
-        output = subprocess.check_output(cmd, text=True)  # noqa: S603,S607
-        for line in output.splitlines():
-            if "sha256:" in line:
-                parts = line.strip().split()
-                for part in parts:
-                    if part.startswith("sha256:"):
-                        return part
+        output = subprocess.check_output(cmd, text=True)  # noqa: S603
+    except subprocess.CalledProcessError:
         return "latest"
-    except Exception:
-        return "latest"
+
+    for line in output.splitlines():
+        if "sha256:" not in line:
+            continue
+        parts = line.strip().split()
+        for part in parts:
+            if part.startswith("sha256:"):
+                return part
+    return "latest"
 
 
 def calculate_hash(digests: dict[str, str]) -> str:
+    """Combine file contents and remote digests into a short config hash."""
     hasher = hashlib.sha256()
     for f in ["pixi.lock", "pixi.toml", "docker/Dockerfile", "docker/docker-bake.hcl"]:
         path = Path(f)
@@ -53,8 +58,12 @@ def calculate_hash(digests: dict[str, str]) -> str:
 
 
 def upload_artifacts(
-    config_hash: str, os_name: str, env: str, tag: str
+    config_hash: str,
+    os_name: str,
+    env: str,
+    tag: str,
 ) -> None:  # pragma: no cover
+    """Upload built images and pixi packs to S3 for later reuse."""
     console.log(f"📤 Uploading artifacts for {tag}...")
     s3 = boto3.client("s3")
 
@@ -62,7 +71,7 @@ def upload_artifacts(
     img_file = f"{os_name}-{env}.tar"
     subprocess.run(["docker", "save", "-o", img_file, tag], check=True)  # noqa: S603,S607
     s3.upload_file(img_file, S3_BUCKET, f"images/{config_hash}/{img_file}")
-    os.remove(img_file)
+    Path(img_file).unlink(missing_ok=True)
 
     # 2. Pixi Pack Extraction
     pack_file = "environment.tar.gz"
@@ -70,10 +79,11 @@ def upload_artifacts(
     subprocess.run(["docker", "cp", f"{cid}:/app/environment.tar.gz", pack_file], check=True)  # noqa: S603,S607
     subprocess.run(["docker", "rm", "-v", cid], check=True)  # noqa: S603,S607
     s3.upload_file(pack_file, S3_BUCKET, f"packs/{config_hash}/{os_name}-{env}.tar.gz")
-    os.remove(pack_file)
+    Path(pack_file).unlink(missing_ok=True)
 
 
 def main() -> None:  # pragma: no cover
+    """Entrypoint for building and optionally publishing images."""
     console.rule("[bold blue]Starting Build")
 
     digests = {k: get_remote_digest(v) for k, v in BASE_IMAGES.items()}
@@ -81,8 +91,9 @@ def main() -> None:  # pragma: no cover
     console.print(f"🔑 Hash: {config_hash}")
 
     if "GITHUB_OUTPUT" in os.environ:
-        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-            f.write(f"HASH={config_hash}\n")
+        output_path = Path(os.environ["GITHUB_OUTPUT"])
+        with output_path.open("a", encoding="utf-8") as file:
+            file.write(f"HASH={config_hash}\n")
 
     env = os.environ.copy()
     env.update(
@@ -90,7 +101,7 @@ def main() -> None:  # pragma: no cover
             "CONFIG_HASH": config_hash,
             "DIGEST_FOCAL": digests["focal"],
             "DIGEST_NOBLE": digests["noble"],
-        }
+        },
     )
 
     target = "--push" if os.getenv("CI") else "--load"

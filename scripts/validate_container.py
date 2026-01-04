@@ -26,40 +26,50 @@ EXPECTED_TOOLS = [
 
 @dataclass
 class ToolResult:
+    """Result of a tool validation within the container."""
+
     name: str
     version: str
     success: bool
     error: str = ""
 
 
-def run_cmd(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
+def run_cmd(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
+    """Run a command and capture output."""
     return subprocess.run(cmd, capture_output=True, text=True, check=check)  # noqa: S603
 
 
 def get_tool_version(container_id: str, tool: str, args: str, expected: str) -> ToolResult:
-    try:
-        result = run_cmd(
-            [
-                "docker",
-                "exec",
-                container_id,
-                "/app/python_runtime",
-                "/app/entrypoint.py",
-                tool,
-                args,
-            ],
-            check=False,
-        )
-        output = result.stdout + result.stderr
-        if result.returncode == 0:
-            version_line = output.strip().split("\n")[0]
-            return ToolResult(name=tool, version=version_line, success=True)
+    """Execute a tool inside the container and validate its output."""
+    result = run_cmd(
+        [
+            "docker",
+            "exec",
+            container_id,
+            "/app/python_runtime",
+            "/app/entrypoint.py",
+            tool,
+            args,
+        ],
+        check=False,
+    )
+    output = result.stdout + result.stderr
+    if result.returncode != 0:
         return ToolResult(name=tool, version="", success=False, error=output[:100])
-    except Exception as e:
-        return ToolResult(name=tool, version="", success=False, error=str(e))
+
+    version_line = output.strip().split("\n")[0]
+    if expected and expected not in version_line:
+        return ToolResult(
+            name=tool,
+            version=version_line,
+            success=False,
+            error="unexpected version string",
+        )
+    return ToolResult(name=tool, version=version_line, success=True)
 
 
 def build_image() -> bool:
+    """Build the devcontainer image for validation."""
     console.print("\n[bold cyan]Building devcontainer image...[/]")
     result = run_cmd(
         [
@@ -89,6 +99,7 @@ def build_image() -> bool:
 
 
 def start_container() -> str | None:
+    """Start the validation container and return its ID."""
     console.print("\n[bold cyan]Starting container...[/]")
     result = run_cmd(
         [
@@ -115,10 +126,12 @@ def start_container() -> str | None:
 
 
 def stop_container(container_id: str) -> None:
+    """Stop and remove the validation container."""
     run_cmd(["docker", "stop", container_id], check=False)
 
 
 def validate_tools(container_id: str) -> list[ToolResult]:
+    """Validate expected tool versions inside the container."""
     console.print("\n[bold cyan]Validating tools...[/]")
     results = []
     for tool, args, expected in EXPECTED_TOOLS:
@@ -128,6 +141,7 @@ def validate_tools(container_id: str) -> list[ToolResult]:
 
 
 def print_results(results: list[ToolResult]) -> bool:
+    """Render a results table and return True if all passed."""
     table = Table(title="Tool Validation Results")
     table.add_column("Tool", style="cyan")
     table.add_column("Version", style="green")
@@ -146,6 +160,7 @@ def print_results(results: list[ToolResult]) -> bool:
 
 
 def main() -> int:
+    """Entrypoint for devcontainer validation."""
     console.rule("[bold blue]Devcontainer Validation")
 
     if not build_image():
@@ -163,9 +178,8 @@ def main() -> int:
         if success:
             console.print("[bold green]✓ All validations passed![/]")
             return 0
-        else:
-            console.print("[bold red]✗ Some validations failed[/]")
-            return 1
+        console.print("[bold red]✗ Some validations failed[/]")
+        return 1
     finally:
         console.print("\n[dim]Cleaning up...[/]")
         stop_container(container_id)
