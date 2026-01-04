@@ -32,8 +32,10 @@ jobs:
           environments: automation
       - name: Collect pixi metadata
         run: |
-          pixi manifest --format json > artifacts/pixi-manifest.json
-          pixi diff --json > artifacts/pixi-diff.json || echo '{"note":"pixi diff unavailable"}' > artifacts/pixi-diff.json
+          set +e
+          pixi info --json > artifacts/pixi-info.json || echo '{"note":"pixi info unavailable"}' > artifacts/pixi-info.json
+          pixi tree --json > artifacts/pixi-tree.json || echo '{"note":"pixi tree unavailable"}' > artifacts/pixi-tree.json
+          set -e
       - name: Hadolint (Dockerfile)
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
         with:
