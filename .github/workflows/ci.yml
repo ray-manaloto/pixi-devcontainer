@@ -19,12 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      ARTIFACTS_DIR: ${{ runner.temp }}/artifacts
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Set artifacts dir
+        run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts" >> $GITHUB_ENV
       - name: Prepare artifacts directory
         run: mkdir -p "$ARTIFACTS_DIR"
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
@@ -36,7 +36,7 @@ jobs:
         run: |
           set +e
           pixi info --json > "$ARTIFACTS_DIR/pixi-info.json" || echo '{"note":"pixi info unavailable"}' > "$ARTIFACTS_DIR/pixi-info.json"
-          pixi tree --json > "$ARTIFACTS_DIR/pixi-tree.json" || echo '{"note":"pixi tree unavailable"}' > "$ARTIFACTS_DIR/pixi-tree.json"
+          pixi list --json > "$ARTIFACTS_DIR/pixi-list.json" || echo '{"note":"pixi list unavailable"}' > "$ARTIFACTS_DIR/pixi-list.json"
           set -e
       - name: Hadolint (Dockerfile)
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
@@ -64,12 +64,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      ARTIFACTS_DIR: ${{ runner.temp }}/artifacts
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Set artifacts dir
+        run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts" >> $GITHUB_ENV
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
           cache: true
