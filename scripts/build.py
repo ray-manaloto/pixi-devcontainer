@@ -108,25 +108,25 @@ def main() -> None:  # pragma: no cover
     push_enabled = bool(os.getenv("CI")) and not skip_push
 
     base_cmd = ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl"]
-    load_args = ["--set", "*.attest=[]", "--set", "*.output=type=docker", "--load"]
+    load_target = "build-local"
 
     if push_enabled:
         try:
             subprocess.run(  # noqa: S603
-                [*base_cmd, "--push"],
+                [*base_cmd, "build", "--push"],
                 env=env,
                 check=True,
             )
         except subprocess.CalledProcessError:
-            console.log("⚠️ buildx push failed; retrying with --load", style="yellow")
+            console.log("⚠️ buildx push failed; retrying with local load", style="yellow")
             subprocess.run(  # noqa: S603
-                [*base_cmd, *load_args],
+                [*base_cmd, load_target],
                 env=env,
                 check=True,
             )
     else:
         subprocess.run(  # noqa: S603
-            [*base_cmd, *load_args],
+            [*base_cmd, load_target],
             env=env,
             check=True,
         )
