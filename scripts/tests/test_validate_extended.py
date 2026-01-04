@@ -63,6 +63,7 @@ def test_list_shell_scripts_filters(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_list_shell_scripts_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Return empty list on git error."""
+
     def boom(*_: object, **__: object) -> None:
         raise validate.subprocess.CalledProcessError(1, ["git"])
 
@@ -106,6 +107,7 @@ def test_run_check_hadolint_missing(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_run_check_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     """Return failure when subprocess raises unexpected error."""
+
     def boom(*_: object, **__: object) -> None:
         msg = "boom"
         raise ValueError(msg)

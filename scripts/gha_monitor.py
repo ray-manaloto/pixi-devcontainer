@@ -62,7 +62,9 @@ def default_branch() -> str:
 
 
 def api_get(
-    path: str, token: str, params: dict[str, str] | None = None,
+    path: str,
+    token: str,
+    params: dict[str, str] | None = None,
 ) -> dict:  # pragma: no cover - network boundary
     """Perform a GitHub API GET with minimal headers."""
     query = urllib.parse.urlencode(params or {})
@@ -134,12 +136,17 @@ def parse_args() -> argparse.Namespace:  # pragma: no cover - CLI wiring
     p.add_argument("--repo", default=None, help="owner/repo (default: from git remote)")
     p.add_argument("--branch", default=None, help="branch to check (default: current)")
     p.add_argument(
-        "--store", action="store_true", help="store latest run id to .gha/latest_run.json",
+        "--store",
+        action="store_true",
+        help="store latest run id to .gha/latest_run.json",
     )
     p.add_argument("--watch", action="store_true", help="watch run until completion")
     p.add_argument("--interval", type=int, default=15, help="poll interval seconds for watch mode")
     p.add_argument(
-        "--run-id", type=int, default=None, help="specific run id to watch (default: latest)",
+        "--run-id",
+        type=int,
+        default=None,
+        help="specific run id to watch (default: latest)",
     )
     return p.parse_args()
 

@@ -15,7 +15,8 @@ def host(request: pytest.FixtureRequest) -> testinfra.host.Host:
 
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv("RUN_INTEGRATION"), reason="Container tests are integration-only",
+    not os.getenv("RUN_INTEGRATION"),
+    reason="Container tests are integration-only",
 )
 
 

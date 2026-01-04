@@ -16,6 +16,7 @@ def test_get_remote_digest_parses_sha(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_get_remote_digest_handles_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     """Return latest on exception."""
+
     def boom(*_: object, **__: object) -> None:
         message = "fail"
         raise ValueError(message)
