@@ -72,7 +72,7 @@ dev-container = ["gcc15", "llvm21", "dev", "automation"]
 [tasks]
 lint-ruff-format = "ruff format --check ."
 lint-ruff = "ruff check ."
-lint-ty = "ty --python-path .pixi/envs/automation/bin/python check scripts --exclude scripts/tests/test_container.py"
+lint-ty = "ty check --python .pixi/envs/automation/bin/python scripts --exclude scripts/tests/test_container.py"
 lint-vulture = "vulture scripts docker"
 lint-pylint-dup = "pylint --disable=all --enable=duplicate-code scripts"
 lint-mypy = "mypy scripts --ignore-missing-imports --implicit-reexport"
