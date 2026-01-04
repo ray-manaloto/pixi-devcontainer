@@ -14,19 +14,13 @@ ARG PIXI_ENV=stable
 # ⚡️ CACHE MOUNT: Persist downloads to host (10x faster)
 RUN --mount=type=cache,target=/root/.cache/pixi \
     --mount=type=cache,target=/root/.cache/uv \
-    pixi install --frozen --environment ${PIXI_ENV}
-
-# 2. Freeze Environment (Pythonic Activation)
-# Dump environment to JSON for instant runtime loading (no bash sourcing)
-RUN pixi run -e ${PIXI_ENV} python -c "import os, json; print(json.dumps(dict(os.environ)))" > /app/pixi_env.json
-
-# 3. Create Stable Entrypoint Link
-RUN ln -sf /app/.pixi/envs/${PIXI_ENV}/bin/python /app/python_runtime
-
-# 4. Generate Portable Pack (S3 Artifact)
-ARG PIXIPACK_PLATFORM=linux-64
-RUN --mount=type=cache,target=/root/.cache/pixi \
-    pixi global install pixi-pack && \
+    pixi install --frozen --environment ${PIXI_ENV} && \
+    # 2. Freeze Environment (Pythonic Activation)
+    pixi run -e ${PIXI_ENV} python -c "import os, json; print(json.dumps(dict(os.environ)))" > /app/pixi_env.json && \
+    # 3. Create Stable Entrypoint Link
+    ln -sf /app/.pixi/envs/${PIXI_ENV}/bin/python /app/python_runtime && \
+    # 4. Generate Portable Pack (S3 Artifact)
+    PIXIPACK_PLATFORM=${PIXIPACK_PLATFORM:-linux-64} pixi global install pixi-pack && \
     (pixi-pack -e ${PIXI_ENV} --platform ${PIXIPACK_PLATFORM} --use-cache /root/.cache/pixi --output-file /app/environment.tar.gz /app || \
      (echo "⚠️ pixi-pack failed, falling back to tarball copy" >&2 && tar -czf /app/environment.tar.gz -C /app/.pixi/envs/${PIXI_ENV} .))
 
