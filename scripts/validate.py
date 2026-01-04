@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 # 🛡️ STRICT QUALITY GATE
-CHECKS: list[tuple[str, list[str]]] = [
+BASE_CHECKS: list[tuple[str, list[str]]] = [
     # 1. Code Quality
     ("Ruff Format", ["ruff", "format", "--check", "."]),
     ("Ruff Lint", ["ruff", "check", "."]),
@@ -80,6 +80,49 @@ def ensure_hadolint() -> bool:
         return False
 
 
+def list_shell_scripts() -> list[str]:
+    """Return tracked shell scripts; skip vendored .pixi files."""
+    try:
+        output = subprocess.check_output(["git", "ls-files", "*.sh"], text=True)  # noqa: S603,S607
+    except subprocess.CalledProcessError:
+        return []
+    return [
+        line.strip()
+        for line in output.splitlines()
+        if line.strip() and not line.startswith(".pixi/")
+    ]
+
+
+def build_checks() -> list[tuple[str, list[str]]]:
+    checks = list(BASE_CHECKS)
+
+    shell_files = list_shell_scripts()
+    if shell_files:
+        checks.append(("ShellCheck", ["shellcheck", *shell_files]))
+    else:
+        print("ℹ️  ShellCheck skipped (no tracked shell scripts)")
+
+    checks.append(
+        (
+            "Semgrep",
+            [
+                "semgrep",
+                "scan",
+                "--error",
+                "--config",
+                "auto",
+                "--exclude",
+                ".pixi",
+                "--exclude",
+                ".git",
+                "--exclude",
+                "build",
+            ],
+        )
+    )
+    return checks
+
+
 def run_check(check: tuple[str, list[str]]) -> tuple[bool, str, str]:
     name, cmd = check
     try:
@@ -99,8 +142,9 @@ def main() -> None:  # pragma: no cover
     print("🛡️  Starting Zero-Tolerance Validation...")
     ensure_hadolint()
     failed = False
+    checks = build_checks()
     with ThreadPoolExecutor() as exe:
-        for success, name, out in exe.map(run_check, CHECKS):
+        for success, name, out in exe.map(run_check, checks):
             if success:
                 print(f"✅ {name}")
             else:

@@ -28,6 +28,7 @@ check-jsonschema = "*"
 actionlint = "*"
 typos = "*"
 checkov = "*"
+shellcheck = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-testinfra = "*"
@@ -35,6 +36,7 @@ pytest-testinfra = "*"
 [feature.automation.pypi-dependencies]
 ty = "*"
 zizmor = "*"
+pylint = "*"
 
 # --- Feature: GCC 15.2 ---
 [feature.gcc15.dependencies]
@@ -65,8 +67,61 @@ stable = ["gcc15", "llvm21"]
 dev-container = ["gcc15", "llvm21", "dev", "automation"]
 
 [tasks]
-validate = { cmd = "python -m scripts.validate", env = { PYTHONUNBUFFERED = "1" } }
+lint-ruff-format = "ruff format --check ."
+lint-ruff = "ruff check ."
+lint-ty = "ty check scripts --exclude scripts/tests/test_container.py"
+lint-vulture = "vulture scripts docker"
+lint-pylint-dup = "pylint --disable=all --enable=duplicate-code scripts"
+lint-semgrep = "sh -c '[ \"${RUN_SEMGREP:-0}\" = \"1\" ] || { echo \"Skipping semgrep (set RUN_SEMGREP=1 to enable)\"; exit 0; }; docker info >/dev/null 2>&1 || { echo \"Skipping semgrep: docker daemon unavailable\"; exit 0; }; docker run --rm -v $(pwd):/src -w /src returntocorp/semgrep:latest semgrep scan --error --config auto --exclude .pixi --exclude .git --exclude build'"
+lint-shellcheck = "sh -c 'files=$(git ls-files \"*.sh\"); if [ -z \"$files\" ]; then echo \"No shell scripts; skipping shellcheck\"; else shellcheck $files; fi'"
+lint-hadolint = """python -c "from scripts import validate; import subprocess, sys
+ok = validate.ensure_hadolint()
+if not ok:
+    print('Skipping hadolint: download unavailable')
+    sys.exit(0)
+try:
+    subprocess.run(['hadolint','docker/Dockerfile'], check=True)
+except (FileNotFoundError, OSError) as exc:
+    print(f'Skipping hadolint: {exc}')
+    sys.exit(0)"
+"""
+lint-actionlint = "actionlint"
+lint-checkov = "checkov -d docker --quiet --compact"
+lint-taplo = "taplo format --check pixi.toml pyproject.toml"
+lint-yamllint = "yamllint .github .devcontainer"
+lint-typos = "typos ."
+lint-jsonschema = "check-jsonschema --schemafile https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json .devcontainer/devcontainer.json"
+lint-zizmor = "zizmor .github/workflows"
+tests = "pytest --cov=scripts scripts/tests"
+lint = { cmd = "true", depends-on = [
+  "lint-ruff-format",
+  "lint-ruff",
+  "lint-ty",
+  "lint-vulture",
+  "lint-pylint-dup",
+  "lint-semgrep",
+  "lint-shellcheck",
+  "lint-hadolint",
+  "lint-actionlint",
+  "lint-checkov",
+  "lint-taplo",
+  "lint-yamllint",
+  "lint-typos",
+  "lint-jsonschema",
+  "lint-zizmor",
+] }
+validate = { cmd = "true", depends-on = [
+  "git-clean",
+  "lint",
+  "tests",
+], description = "Run all linters, static analyzers, and tests" }
 build = { cmd = "python -m scripts.build", env = { PYTHONUNBUFFERED = "1" } }
 setup-dev = { cmd = "python -m scripts.setup_dev", env = { PYTHONUNBUFFERED = "1" } }
 init-container = "python -m scripts.lib.container_init"
-prepush = { cmd = "python -m scripts.prepush", env = { PYTHONUNBUFFERED = "1" }, description = "Ensure clean git tree, run all linters/tests, and dry-run docker bake" }
+git-clean = { cmd = "python - <<'PY'\nimport subprocess\nimport sys\nout = subprocess.check_output(['git', 'status', '--porcelain'], text=True)\nif out.strip():\n    sys.stderr.write('Working tree is dirty. Commit or stash changes before pushing.\\n' + out)\n    sys.exit(1)\nprint('Git working tree clean')\nPY" }
+docker-bake-print = "docker buildx bake -f docker/docker-bake.hcl --print"
+prepush = { cmd = "true", depends-on = [
+  "git-clean",
+  "validate",
+  "docker-bake-print",
+], description = "Ensure clean git tree, run all linters/tests, and dry-run docker bake" }

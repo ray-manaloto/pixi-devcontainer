@@ -23,6 +23,10 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Hadolint (Dockerfile)
+        uses: hadolint/hadolint-action@6eff3b1b6c59df0e1c56f7f289fc5646e858e475 # v3.1.0
+        with:
+          dockerfile: docker/Dockerfile
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
           cache: true
@@ -30,6 +34,10 @@ jobs:
           environments: automation
       # Runs the full Strict Suite
       - run: pixi run -e automation validate
+        env:
+          RUN_SEMGREP: "1"
+      - name: Ensure working tree clean (no generated diffs)
+        run: git diff --exit-code
 
   build:
     needs: quality

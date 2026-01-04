@@ -5,6 +5,7 @@ target-version = "py312"
 [tool.ruff.lint]
 # F=Pyflakes, E=Style, I=Isort, UP=Modernize, B=Bugbear, S=Bandit, C90=Complexity
 select = ["F", "E", "I", "UP", "B", "S", "C90"]
+extend-select = ["SIM"]
 ignore = []
 
 [tool.ruff.lint.mccabe]
