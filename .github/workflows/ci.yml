@@ -53,5 +53,10 @@ jobs:
           cache: true
           locked: true
           environments: automation
-      # Dry-run only: render bake targets without building images to keep CI light
-      - run: pixi run -e automation docker-bake-print
+      - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+      - name: Build devcontainer images (no push)
+        env:
+          REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
+          CI_SKIP_PUSH: "1"
+          SKIP_PUSH: "1"
+        run: pixi run -e automation build
