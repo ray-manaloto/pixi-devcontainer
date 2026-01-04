@@ -23,11 +23,6 @@ target "secure" {
   ]
 }
 
-target "base-load" {
-  inherits = ["base"]
-  output = ["type=docker"]
-}
-
 target "build" {
   inherits = ["secure"]
   matrix = {
@@ -45,13 +40,15 @@ target "build" {
 }
 
 target "build-local" {
-  inherits = ["base-load"]
+  inherits = ["base"]
+  output = ["type=docker"]
+  attest = []
   matrix = {
     # 20.04 (Focal) and 24.04 (Noble)
     os = ["focal", "noble"]
     env = ["stable"]
   }
-  name = "${os}-${env}"
+  name = "${os}-${env}-load"
   args = {
     # Select base image digest dynamically
     BASE_IMAGE = os == "focal" ? "ghcr.io/prefix-dev/pixi:focal@${DIGEST_FOCAL}" : "ghcr.io/prefix-dev/pixi:noble@${DIGEST_NOBLE}"
