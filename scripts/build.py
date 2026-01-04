@@ -18,7 +18,15 @@ BASE_IMAGES = {
 def get_remote_digest(image: str) -> str:
     """Fetch upstream digest to ensure security updates trigger rebuilds."""
     try:
-        cmd = ["docker", "buildx", "imagetools", "inspect", image]
+        cmd = [
+            "docker",
+            "buildx",
+            "imagetools",
+            "inspect",
+            "--format",
+            "{{ (index .Manifest.Manifests 0).Digest }}",
+            image,
+        ]
         output = subprocess.check_output(cmd, text=True)  # noqa: S603,S607
         for line in output.splitlines():
             if "sha256:" in line:
