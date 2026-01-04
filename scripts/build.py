@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
 import os
-import re
 import subprocess
 from pathlib import Path
 
@@ -20,12 +19,15 @@ def get_remote_digest(image: str) -> str:
     """Fetch upstream digest to ensure security updates trigger rebuilds."""
     try:
         cmd = ["docker", "buildx", "imagetools", "inspect", image]
-        output = subprocess.check_output(cmd, text=True)
-        match = re.search(r"sha256:[0-9a-f]{64}", output)
-        if match:
-            return match.group(0)
+        output = subprocess.check_output(cmd, text=True)  # noqa: S603,S607
+        for line in output.splitlines():
+            if "sha256:" in line:
+                parts = line.strip().split()
+                for part in parts:
+                    if part.startswith("sha256:"):
+                        return part
         return "latest"
-    except subprocess.CalledProcessError:
+    except Exception:
         return "latest"
 
 
@@ -45,19 +47,20 @@ def calculate_hash(digests: dict[str, str]) -> str:
 def upload_artifacts(
     config_hash: str, os_name: str, env: str, tag: str
 ) -> None:  # pragma: no cover
-    """Uploads Docker Image + Pixi Pack to S3."""
+    console.log(f"📤 Uploading artifacts for {tag}...")
     s3 = boto3.client("s3")
 
+    # 1. Docker Save
     img_file = f"{os_name}-{env}.tar"
-    subprocess.run(["docker", "save", "-o", img_file, tag], check=True)
+    subprocess.run(["docker", "save", "-o", img_file, tag], check=True)  # noqa: S603,S607
     s3.upload_file(img_file, S3_BUCKET, f"images/{config_hash}/{img_file}")
     os.remove(img_file)
 
+    # 2. Pixi Pack Extraction
     pack_file = "environment.tar.gz"
-    cid = subprocess.check_output(["docker", "create", tag]).decode().strip()
-    subprocess.run(["docker", "cp", f"{cid}:/app/environment.tar.gz", pack_file], check=True)
-    subprocess.run(["docker", "rm", "-v", cid], check=True)
-
+    cid = subprocess.check_output(["docker", "create", tag]).decode().strip()  # noqa: S603,S607
+    subprocess.run(["docker", "cp", f"{cid}:/app/environment.tar.gz", pack_file], check=True)  # noqa: S603,S607
+    subprocess.run(["docker", "rm", "-v", cid], check=True)  # noqa: S603,S607
     s3.upload_file(pack_file, S3_BUCKET, f"packs/{config_hash}/{os_name}-{env}.tar.gz")
     os.remove(pack_file)
 
@@ -70,7 +73,7 @@ def main() -> None:  # pragma: no cover
     console.print(f"🔑 Hash: {config_hash}")
 
     if "GITHUB_OUTPUT" in os.environ:
-        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write(f"HASH={config_hash}\n")
 
     env = os.environ.copy()
@@ -83,8 +86,10 @@ def main() -> None:  # pragma: no cover
     )
 
     target = "--push" if os.getenv("CI") else "--load"
-    subprocess.run(
-        ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl", target], env=env, check=True
+    subprocess.run(  # noqa: S603
+        ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl", target],  # noqa: S607
+        env=env,
+        check=True,
     )
 
     if os.getenv("CI"):

@@ -1,76 +1,58 @@
 [workspace]
-name = "cpp-matrix"
-version = "2025.1.0"
+name = "cpp-bleeding-edge"
+version = "2026.1.0"
+description = "Bleeding edge C++ dev environment (GCC 15.2 / LLVM 21)"
+platforms = ["linux-64", "osx-arm64"]
 channels = ["conda-forge"]
-platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
-
-[pypi-options]
-# uv is used automatically for PyPI dependencies
 
 [dependencies]
-# Core build tools - always latest
 cmake = "*"
 ninja = "*"
-python = ">=3.11"
+python = "3.12.*"
 sccache = "*"
 
-# --- Feature: Automation (CI Tools) ---
+# --- Feature: Automation (Zero Tolerance Suite) ---
 [feature.automation.dependencies]
 # Python SDKs
 boto3 = "*"
 docker-py = "*"
 rich = "*"
 
-# Quality Suite
+# Static Analysis & Linters
 ruff = "*"
 vulture = "*"
 deptry = "*"
-pytest = "*"
-pytest-testinfra = "*"
-pytest-cov = "*"
-
-# Cross-platform linters
+taplo = "*"
+yamllint = "*"
+check-jsonschema = "*"
+actionlint = "*"
 typos = "*"
-# Note: hadolint and actionlint installed via brew/binary in CI
+checkov = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-testinfra = "*"
 
 [feature.automation.pypi-dependencies]
 ty = "*"
+zizmor = "*"
 
-# --- Feature: Compilers (GCC - latest stable) ---
-[feature.gcc.target.linux-64.dependencies]
+# --- Feature: GCC 15.2 ---
+[feature.gcc15.dependencies]
 gcc = "*"
 gxx = "*"
 
-[feature.gcc.target.linux-aarch64.dependencies]
-gcc = "*"
-gxx = "*"
-
-# --- Feature: LLVM toolchain (latest) ---
-[feature.llvm.target.linux-64.dependencies]
+# --- Feature: LLVM 21 ---
+[feature.llvm21.dependencies]
 clang = "*"
 clangxx = "*"
 lld = "*"
-llvm-tools = "*"
+lldb = "*"
 clang-tools = "*"
-
-[feature.llvm.target.linux-aarch64.dependencies]
-clang = "*"
-clangxx = "*"
-lld = "*"
 llvm-tools = "*"
-clang-tools = "*"
 
-[feature.llvm.target.osx-arm64.dependencies]
-clang = "*"
-clangxx = "*"
-lld = "*"
-llvm-tools = "*"
-clang-tools = "*"
-
-# --- Feature: Interactive Dev Tools ---
+# --- Feature: Dev Tools ---
 [feature.dev.dependencies]
 gdb = "*"
-lcov = "*"
 starship = "*"
 bat = "*"
 ripgrep = "*"
@@ -79,11 +61,11 @@ direnv = "*"
 # --- Environments ---
 [environments]
 automation = ["automation"]
-stable = ["gcc", "llvm"]
-dev-container = ["gcc", "llvm", "dev", "automation"]
+stable = ["gcc15", "llvm21"]
+dev-container = ["gcc15", "llvm21", "dev", "automation"]
 
 [tasks]
 validate = { cmd = "python -m scripts.validate", env = { PYTHONUNBUFFERED = "1" } }
 build = { cmd = "python -m scripts.build", env = { PYTHONUNBUFFERED = "1" } }
-update = { cmd = "pixi update && pixi install", description = "Update all dependencies to latest" }
-validate-container = { cmd = "python -m scripts.validate_container", env = { PYTHONUNBUFFERED = "1" }, description = "Build and validate devcontainer" }
+setup-dev = { cmd = "python -m scripts.setup_dev", env = { PYTHONUNBUFFERED = "1" } }
+init-container = "python -m scripts.lib.container_init"

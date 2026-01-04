@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Generate the C++ project scaffold from the current templates."""
+
 from __future__ import annotations
 
 import argparse
@@ -19,6 +20,7 @@ TEMPLATE_PATHS = [
     ".gitignore",
     ".dockerignore",
     ".devcontainer/devcontainer.json",
+    ".devcontainer/otel-config.yaml",
     ".github/workflows/ci.yml",
     "docker/Dockerfile",
     "docker/docker-bake.hcl",
@@ -27,10 +29,14 @@ TEMPLATE_PATHS = [
     "scripts/build.py",
     "scripts/validate.py",
     "scripts/validate_container.py",
+    "scripts/setup_dev.py",
+    "scripts/lib/__init__.py",
+    "scripts/lib/container_init.py",
     "scripts/tests/__init__.py",
     "scripts/tests/test_build_unit.py",
     "scripts/tests/test_validate_unit.py",
     "scripts/tests/test_container.py",
+    "scripts/tests/test_placeholder.py",
 ]
 
 
@@ -62,20 +68,7 @@ def maybe_lock(root: Path, run_lock: bool) -> None:
         return
     try:
         print("Generating pixi.lock (stable, automation, dev-container)...")
-        subprocess.run(
-            [
-                "pixi",
-                "lock",
-                "--environment",
-                "stable",
-                "--environment",
-                "automation",
-                "--environment",
-                "dev-container",
-            ],
-            cwd=root,
-            check=True,
-        )
+        subprocess.run(["pixi", "lock"], cwd=root, check=True)  # noqa: S603,S607
     except subprocess.CalledProcessError as exc:
         print(f"pixi lock failed (non-fatal): {exc}")
 

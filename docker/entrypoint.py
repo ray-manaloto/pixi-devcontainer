@@ -12,7 +12,7 @@ def main() -> None:
 
     args = sys.argv[1:] or ["/bin/bash"]
     try:
-        os.execvpe(args[0], args, os.environ)
+        os.execvpe(args[0], args, os.environ)  # noqa: S606,S607
     except FileNotFoundError:
         sys.exit(f"Error: Command '{args[0]}' not found.")
 

@@ -9,7 +9,8 @@ def test_get_remote_digest_success(monkeypatch):
     def fake_check_output(cmd, text=True):  # noqa: ARG001 - match subprocess signature
         _ = text
         assert "imagetools" in cmd
-        return f"Name: image\nDigest: {expected}\n"
+        assert "--format" in cmd
+        return expected
 
     monkeypatch.setattr(subprocess, "check_output", fake_check_output)
     assert build.get_remote_digest("ghcr.io/example") == expected

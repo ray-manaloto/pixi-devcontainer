@@ -33,7 +33,7 @@ class ToolResult:
 
 
 def run_cmd(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, check=check)
+    return subprocess.run(cmd, capture_output=True, text=True, check=check)  # noqa: S603
 
 
 def get_tool_version(container_id: str, tool: str, args: str, expected: str) -> ToolResult:
