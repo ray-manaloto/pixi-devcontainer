@@ -48,6 +48,7 @@ jobs:
       id-token: write
     env:
       REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
+      CI_SKIP_PUSH: "1"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
