@@ -30,7 +30,7 @@ def get_remote_digest(image: str) -> str:  # pragma: no cover - external docker 
     ]
     try:
         output = subprocess.check_output(cmd, text=True)  # noqa: S603
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, Exception):
         return "latest"
 
     for line in output.splitlines():

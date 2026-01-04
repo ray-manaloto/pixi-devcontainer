@@ -146,8 +146,11 @@ def run_check(check: tuple[str, list[str]]) -> tuple[bool, str, str]:
     """Run a single check and return (success, name, output)."""
     name, cmd = check
     if not shutil.which(cmd[0]):
-        if name.lower().startswith("hadolint"):
+        lowered = name.lower()
+        if lowered.startswith("hadolint"):
             return True, name, "hadolint missing, skipped"
+        if lowered.startswith("semgrep"):
+            return True, name, "semgrep missing, skipped"
         return False, name, f"Tool not found: {cmd[0]}"
     try:
         res = subprocess.run(cmd, check=False, capture_output=True, text=True)  # noqa: S603

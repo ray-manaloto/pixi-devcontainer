@@ -126,10 +126,12 @@ def test_run_check_success(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(
         cmd: list[str] | str,
         *,
+        check: bool = False,
         capture_output: bool = True,
         text: bool = True,
+        **kwargs: object,
     ) -> SimpleNamespace:
-        _ = (cmd, capture_output, text)
+        _ = (cmd, check, capture_output, text, kwargs)
         return SimpleNamespace(returncode=0, stdout="ok", stderr="")
 
     monkeypatch.setattr(validate.subprocess, "run", fake_run)
