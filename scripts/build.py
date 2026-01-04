@@ -105,19 +105,28 @@ def main() -> None:  # pragma: no cover
     )
 
     skip_push = os.getenv("CI_SKIP_PUSH") == "1" or os.getenv("SKIP_PUSH") == "1"
-    target = "--push" if os.getenv("CI") and not skip_push else "--load"
-    try:
+    push_enabled = bool(os.getenv("CI")) and not skip_push
+
+    base_cmd = ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl"]
+    load_args = ["--set", "*.attest=[]", "--set", "*.output=type=docker", "--load"]
+
+    if push_enabled:
+        try:
+            subprocess.run(  # noqa: S603
+                [*base_cmd, "--push"],
+                env=env,
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            console.log("⚠️ buildx push failed; retrying with --load", style="yellow")
+            subprocess.run(  # noqa: S603
+                [*base_cmd, *load_args],
+                env=env,
+                check=True,
+            )
+    else:
         subprocess.run(  # noqa: S603
-            ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl", target],  # noqa: S607
-            env=env,
-            check=True,
-        )
-    except subprocess.CalledProcessError:
-        if target != "--push":
-            raise
-        console.log("⚠️ buildx push failed; retrying with --load", style="yellow")
-        subprocess.run(
-            ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl", "--load"],  # noqa: S607
+            [*base_cmd, *load_args],
             env=env,
             check=True,
         )
