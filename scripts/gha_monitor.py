@@ -33,7 +33,7 @@ HTTP_ERROR_THRESHOLD = 400
 def require_token() -> str:
     """Return a GitHub token or exit with a helpful error."""
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if not token:
+    if token is None:
         sys.exit("GITHUB_TOKEN (or GH_TOKEN) is required to monitor GitHub Actions runs.")
     return token
 
@@ -177,6 +177,7 @@ def main() -> None:  # pragma: no cover
 
     if args.watch:
         run_id = args.run_id or run["id"]
+        assert run_id is not None  # ty: narrow from dict
         watch_run(repo, run_id, token, args.interval)
 
 
