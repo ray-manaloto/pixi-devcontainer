@@ -154,7 +154,7 @@ def run_check(check: tuple[str, list[str]]) -> tuple[bool, str, str]:
         return False, name, f"Tool not found: {cmd[0]}"
     try:
         res = subprocess.run(cmd, check=False, capture_output=True, text=True)  # noqa: S603
-    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover - defensive
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:  # pragma: no cover - defensive
         if name.lower().startswith("hadolint"):
             return True, name, f"hadolint skipped: {exc}"
         return False, name, str(exc)
