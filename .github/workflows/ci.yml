@@ -19,12 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      ARTIFACTS_DIR: ${{ runner.temp }}/artifacts
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
       - name: Prepare artifacts directory
-        run: mkdir -p artifacts
+        run: mkdir -p "$ARTIFACTS_DIR"
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
           cache: true
@@ -33,8 +35,8 @@ jobs:
       - name: Collect pixi metadata
         run: |
           set +e
-          pixi info --json > artifacts/pixi-info.json || echo '{"note":"pixi info unavailable"}' > artifacts/pixi-info.json
-          pixi tree --json > artifacts/pixi-tree.json || echo '{"note":"pixi tree unavailable"}' > artifacts/pixi-tree.json
+          pixi info --json > "$ARTIFACTS_DIR/pixi-info.json" || echo '{"note":"pixi info unavailable"}' > "$ARTIFACTS_DIR/pixi-info.json"
+          pixi tree --json > "$ARTIFACTS_DIR/pixi-tree.json" || echo '{"note":"pixi tree unavailable"}' > "$ARTIFACTS_DIR/pixi-tree.json"
           set -e
       - name: Hadolint (Dockerfile)
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
@@ -44,17 +46,17 @@ jobs:
       - name: Run validate (with reports)
         env:
           RUN_SEMGREP: "1"
-          PYTEST_ADDOPTS: "--cov-report=xml:artifacts/coverage.xml --junitxml=artifacts/tests.xml"
+          PYTEST_ADDOPTS: "--cov-report=xml:${ARTIFACTS_DIR}/coverage.xml --junitxml=${ARTIFACTS_DIR}/tests.xml"
         run: |
           set -o pipefail
-          pixi run -e automation validate | tee artifacts/validate.log
+          pixi run -e automation validate | tee "$ARTIFACTS_DIR/validate.log"
       - name: Ensure working tree clean (no generated diffs)
         run: git diff --exit-code
       - name: Upload quality artifacts
         uses: actions/upload-artifact@v4
         with:
           name: quality-${{ github.run_id }}
-          path: artifacts/**
+          path: ${{ env.ARTIFACTS_DIR }}/**
           if-no-files-found: warn
 
   build:
@@ -62,6 +64,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      ARTIFACTS_DIR: ${{ runner.temp }}/artifacts
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -74,8 +78,8 @@ jobs:
       - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
       - name: Bake plan
         run: |
-          mkdir -p artifacts build
-          docker buildx bake -f docker/docker-bake.hcl --print > artifacts/bake-plan.json
+          mkdir -p "$ARTIFACTS_DIR" build
+          docker buildx bake -f docker/docker-bake.hcl --print > "$ARTIFACTS_DIR/bake-plan.json"
       - name: Build devcontainer images (no push)
         id: build
         env:
@@ -84,12 +88,13 @@ jobs:
           SKIP_PUSH: "1"
         run: |
           set -o pipefail
-          pixi run -e automation build | tee artifacts/build.log
+          pixi run -e automation build | tee "$ARTIFACTS_DIR/build.log"
       - name: Summarize OCI artifacts
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
+          import os
 
           artifacts = []
           for tar in Path("build").glob("*.tar"):
@@ -101,7 +106,9 @@ jobs:
                       "modified": stat.st_mtime,
                   },
               )
-          Path("artifacts/oci-metadata.json").write_text(
+          out_dir = Path(os.environ["ARTIFACTS_DIR"])
+          out_dir.mkdir(parents=True, exist_ok=True)
+          (out_dir / "oci-metadata.json").write_text(
               json.dumps({"images": artifacts}, indent=2),
               encoding="utf-8",
           )
@@ -111,6 +118,6 @@ jobs:
         with:
           name: devcontainer-build-${{ steps.build.outputs.HASH || github.run_id }}
           path: |
-            artifacts/**
+            ${{ env.ARTIFACTS_DIR }}/**
             build/*.tar
           if-no-files-found: error
