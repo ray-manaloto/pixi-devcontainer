@@ -18,7 +18,18 @@ BASE_CHECKS: list[tuple[str, list[str]]] = [
     # 1. Code Quality
     ("Ruff Format", ["ruff", "format", "--check", "."]),
     ("Ruff Lint", ["ruff", "check", "."]),
-    ("Astral Ty", ["ty", "check", "scripts", "--exclude", "scripts/tests/test_container.py"]),
+    (
+        "Astral Ty",
+        [
+            "ty",
+            "--python-path",
+            ".pixi/envs/automation/bin/python",
+            "check",
+            "scripts",
+            "--exclude",
+            "scripts/tests/test_container.py",
+        ],
+    ),
     ("Vulture (Dead Code)", ["vulture", "scripts", "docker"]),
     # 2. Infrastructure
     ("Hadolint", ["hadolint", "docker/Dockerfile"]),
