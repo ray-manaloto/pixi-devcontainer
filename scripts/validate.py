@@ -22,7 +22,7 @@ BASE_CHECKS: list[tuple[str, list[str]]] = [
         "Astral Ty",
         [
             "ty",
-            "--python-path",
+            "--python",
             ".pixi/envs/automation/bin/python",
             "check",
             "scripts",
