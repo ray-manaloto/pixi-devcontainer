@@ -25,6 +25,11 @@ jobs:
           persist-credentials: false
       - name: Prepare artifacts directory
         run: mkdir -p artifacts
+      - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
+        with:
+          cache: true
+          locked: true
+          environments: automation
       - name: Collect pixi metadata
         run: |
           pixi manifest --format json > artifacts/pixi-manifest.json
@@ -33,11 +38,6 @@ jobs:
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
         with:
           dockerfile: docker/Dockerfile
-      - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
-        with:
-          cache: true
-          locked: true
-          environments: automation
       # Runs the full Strict Suite
       - name: Run validate (with reports)
         env:
