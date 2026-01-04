@@ -23,6 +23,12 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Prepare artifacts directory
+        run: mkdir -p artifacts
+      - name: Collect pixi metadata
+        run: |
+          pixi manifest --format json > artifacts/pixi-manifest.json
+          pixi diff --json > artifacts/pixi-diff.json || echo '{"note":"pixi diff unavailable"}' > artifacts/pixi-diff.json
       - name: Hadolint (Dockerfile)
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
         with:
@@ -33,11 +39,21 @@ jobs:
           locked: true
           environments: automation
       # Runs the full Strict Suite
-      - run: pixi run -e automation validate
+      - name: Run validate (with reports)
         env:
           RUN_SEMGREP: "1"
+          PYTEST_ADDOPTS: "--cov-report=xml:artifacts/coverage.xml --junitxml=artifacts/tests.xml"
+        run: |
+          set -o pipefail
+          pixi run -e automation validate | tee artifacts/validate.log
       - name: Ensure working tree clean (no generated diffs)
         run: git diff --exit-code
+      - name: Upload quality artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-${{ github.run_id }}
+          path: artifacts/**
+          if-no-files-found: warn
 
   build:
     needs: quality
@@ -54,16 +70,39 @@ jobs:
           locked: true
           environments: automation
       - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+      - name: Bake plan
+        run: |
+          mkdir -p artifacts build
+          docker buildx bake -f docker/docker-bake.hcl --print > artifacts/bake-plan.json
       - name: Build devcontainer images (no push)
         id: build
         env:
           REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
           CI_SKIP_PUSH: "1"
           SKIP_PUSH: "1"
-        run: pixi run -e automation build
+        run: |
+          set -o pipefail
+          pixi run -e automation build | tee artifacts/build.log
+      - name: Summarize OCI artifacts
+        run: |
+          python - <<'PY'
+import json
+from pathlib import Path
+artifacts = []
+for tar in Path("build").glob("*.tar"):
+    stat = tar.stat()
+    artifacts.append({
+        "file": tar.name,
+        "size_bytes": stat.st_size,
+        "modified": stat.st_mtime,
+    })
+Path("artifacts/oci-metadata.json").write_text(json.dumps({"images": artifacts}, indent=2), encoding="utf-8")
+PY
       - name: Upload devcontainer OCI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: devcontainer-oci-${{ steps.build.outputs.HASH || 'unknown' }}
-          path: build/*.tar
+          name: devcontainer-build-${{ steps.build.outputs.HASH || github.run_id }}
+          path: |
+            artifacts/**
+            build/*.tar
           if-no-files-found: error
