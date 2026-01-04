@@ -15,7 +15,7 @@ BASE_IMAGES = {
 }
 
 
-def get_remote_digest(image: str) -> str:
+def get_remote_digest(image: str) -> str:  # pragma: no cover - external docker call
     """Fetch upstream digest to ensure security updates trigger rebuilds."""
     try:
         cmd = [

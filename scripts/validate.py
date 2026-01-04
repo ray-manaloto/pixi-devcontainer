@@ -72,6 +72,7 @@ def ensure_hadolint() -> bool:
 
     try:
         subprocess.run(["curl", "-sSL", "-o", str(dest), url], check=True)  # noqa: S603,S607
+        dest.touch(exist_ok=True)
         dest.chmod(0o755)
         os.environ["PATH"] = f"{dest_dir}:{os.environ.get('PATH', '')}"
         return True

@@ -3,10 +3,8 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-# F=Pyflakes, E=Style, I=Isort, UP=Modernize, B=Bugbear, S=Bandit, C90=Complexity
-select = ["F", "E", "I", "UP", "B", "S", "C90"]
-extend-select = ["SIM"]
-ignore = []
+# Modern strict profile: run all checks (no ignores).
+select = ["ALL"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -24,11 +22,12 @@ omit = [
   "scripts/lib/container_init.py",
   "scripts/setup_dev.py",
   "scripts/tests/test_container.py",
+  "scripts/tests/*",
 ]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 60
+fail_under = 100
 exclude_lines = [
   "pragma: no cover",
   "if __name__ == .__main__.:",
@@ -37,3 +36,6 @@ exclude_lines = [
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/tests/*.py" = ["S101"]
+
+[tool.uv]
+python = ">=3.12,<3.13"

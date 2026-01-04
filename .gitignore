@@ -12,3 +12,6 @@ __pycache__/
 *.tar
 *.tar.gz
 pixi_env.json
+.venv/
+.gha/
+uv.lock
