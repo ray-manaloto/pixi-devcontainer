@@ -36,6 +36,3 @@ exclude_lines = [
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/tests/*.py" = ["S101"]
-
-[tool.uv]
-python = ">=3.12,<3.13"
