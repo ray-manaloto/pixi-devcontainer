@@ -41,7 +41,7 @@ target "build" {
 
 target "build-local" {
   inherits = ["base"]
-  output = ["type=oci,dest=build/${name}.tar"]
+  output = ["type=oci,dest=build/${os}-${env}.tar"]
   attest = []
   matrix = {
     # 20.04 (Focal) and 24.04 (Noble)
