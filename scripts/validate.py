@@ -22,9 +22,9 @@ BASE_CHECKS: list[tuple[str, list[str]]] = [
         "Astral Ty",
         [
             "ty",
+            "check",
             "--python",
             ".pixi/envs/automation/bin/python",
-            "check",
             "scripts",
             "--exclude",
             "scripts/tests/test_container.py",
