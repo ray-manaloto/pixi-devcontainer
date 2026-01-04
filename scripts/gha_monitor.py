@@ -13,14 +13,16 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
-import http.client
 import json
 import logging
 import os
+import ssl
 import subprocess
 import sys
 import time
 import urllib.parse
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 STATE_DIR = Path(".gha")
@@ -69,28 +71,35 @@ def api_get(
 ) -> dict:  # pragma: no cover - network boundary
     """Perform a GitHub API GET with minimal headers."""
     query = urllib.parse.urlencode(params or {})
-    parsed = urllib.parse.urlparse(f"{GITHUB_API}{path}")
+    query = urllib.parse.urlencode(params or {})
+    url = f"{GITHUB_API}{path}"
+    if query:
+        url = f"{url}?{query}"
+
+    parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https":
         message = "Refusing non-https GitHub API URL"
         raise ValueError(message)
+    if parsed.netloc != "api.github.com":
+        message = f"Unexpected GitHub API host: {parsed.netloc}"
+        raise ValueError(message)
 
-    connection = http.client.HTTPSConnection(parsed.netloc)
-    target = parsed.path or "/"
-    if query:
-        target = f"{target}?{query}"
+    context = ssl.create_default_context()
     try:
-        connection.request(
-            "GET",
-            target,
+        request = urllib.request.Request(
+            url,
             headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
         )
-        response = connection.getresponse()
-        body = response.read().decode("utf-8")
-        if response.status >= HTTP_ERROR_THRESHOLD:
-            sys.exit(f"GitHub API error {response.status}: {body}")
-        return json.loads(body)
-    finally:
-        connection.close()
+        with urllib.request.urlopen(  # nosemgrep
+            request, context=context, timeout=10
+        ) as response:
+            body = response.read().decode("utf-8")
+            if response.status >= HTTP_ERROR_THRESHOLD:
+                sys.exit(f"GitHub API error {response.status}: {body}")
+            return json.loads(body)
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="ignore")
+        sys.exit(f"GitHub API error {error.code}: {body}")
 
 
 def latest_run(repo: str, branch: str, token: str) -> dict | None:

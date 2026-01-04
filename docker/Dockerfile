@@ -26,5 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/pixi \
 
 COPY docker/entrypoint.py /app/entrypoint.py
 
+USER 65532
+
 ENTRYPOINT ["/app/python_runtime", "/app/entrypoint.py"]
 CMD ["/bin/bash"]
