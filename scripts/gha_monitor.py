@@ -177,7 +177,8 @@ def main() -> None:  # pragma: no cover
 
     if args.watch:
         run_id = args.run_id or run["id"]
-        assert run_id is not None  # ty: narrow from dict
+        if run_id is None:
+            sys.exit("Run id missing; cannot watch workflow.")
         watch_run(repo, run_id, token, args.interval)
 
 
