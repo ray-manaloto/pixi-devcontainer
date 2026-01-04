@@ -86,15 +86,15 @@ def api_get(
 
     context = ssl.create_default_context()
     try:
-        request = urllib.request.Request(
+        request = urllib.request.Request(  # noqa: S310
             url,
             headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        )  # noqa: S310
-        with urllib.request.urlopen(  # nosemgrep
+        )
+        with urllib.request.urlopen(  # nosemgrep  # noqa: S310
             request,
             context=context,
             timeout=10,
-        ) as response:  # noqa: S310
+        ) as response:
             body = response.read().decode("utf-8")
             if response.status >= HTTP_ERROR_THRESHOLD:
                 sys.exit(f"GitHub API error {response.status}: {body}")
