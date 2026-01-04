@@ -69,3 +69,4 @@ validate = { cmd = "python -m scripts.validate", env = { PYTHONUNBUFFERED = "1" 
 build = { cmd = "python -m scripts.build", env = { PYTHONUNBUFFERED = "1" } }
 setup-dev = { cmd = "python -m scripts.setup_dev", env = { PYTHONUNBUFFERED = "1" } }
 init-container = "python -m scripts.lib.container_init"
+prepush = { cmd = "python -m scripts.prepush", env = { PYTHONUNBUFFERED = "1" }, description = "Ensure clean git tree, run all linters/tests, and dry-run docker bake" }
