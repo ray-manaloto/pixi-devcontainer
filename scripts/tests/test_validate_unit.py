@@ -35,3 +35,12 @@ def test_run_check_missing_tool(monkeypatch: pytest.MonkeyPatch) -> None:
     assert success is False
     assert name == "missing"
     assert "not found" in out
+
+
+def test_run_check_semgrep_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Semgrep should be skipped gracefully when not installed."""
+    monkeypatch.setattr(validate.shutil, "which", lambda _: False)
+    success, name, out = validate.run_check(("Semgrep", ["semgrep"]))
+    assert success is True
+    assert name == "Semgrep"
+    assert "semgrep missing" in out
