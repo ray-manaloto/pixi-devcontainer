@@ -116,7 +116,7 @@ def main() -> None:  # pragma: no cover
         if target != "--push":
             raise
         console.log("⚠️ buildx push failed; retrying with --load", style="yellow")
-        subprocess.run(  # noqa: S603
+        subprocess.run(
             ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl", "--load"],  # noqa: S607
             env=env,
             check=True,
