@@ -1,23 +1,46 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "docker:pinDigests"],
-  "labels": ["dependencies"],
+  "extends": [
+    "config:base",
+    ":disableRateLimiting",
+    ":enablePreCommit",
+    ":separateMajorReleases"
+  ],
+  "timezone": "UTC",
+  "schedule": ["every 6 hours"],
+  "prHourlyLimit": 4,
+  "labels": ["deps"],
+  "reviewers": [],
   "packageRules": [
     {
-      "matchPackagePatterns": ["*"],
+      "description": "Automerge safe GitHub Actions patch/minor",
+      "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "all-non-major-dependencies",
       "automerge": true
+    },
+    {
+      "description": "Automerge patch/minor for non-critical conda/pixi deps",
+      "matchManagers": ["regex"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": false
     }
   ],
+  "github-actions": {
+    "enabled": true
+  },
+  "pep621": {
+    "enabled": true,
+    "fileMatch": ["^pyproject\\.toml$"]
+  },
   "regexManagers": [
     {
-      "description": "Update Docker references in bake file",
-      "fileMatch": ["^docker/docker-bake\\.hcl$"],
+      "description": "Pixi dependencies in pixi.toml",
+      "fileMatch": ["^pixi\\.toml$"],
       "matchStrings": [
-        "default\\s*=\\s*\"(?<depName>.*?)@(?<currentDigest>sha256:[a-f0-9]+)\""
+        "^\\s*(?<depName>[A-Za-z0-9_.-]+)\\s*=\\s*\"(?<currentValue>[^\"\\s]+)\"\\s*$"
       ],
-      "datasourceTemplate": "docker"
+      "datasourceTemplate": "conda",
+      "versioningTemplate": "conda"
     }
   ]
 }
