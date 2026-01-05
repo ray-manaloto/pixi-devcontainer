@@ -1,2 +1,2 @@
 [files]
-extend-exclude = ["*.docx", "docs/research/*"]
+extend-exclude = ["*.docx"]
