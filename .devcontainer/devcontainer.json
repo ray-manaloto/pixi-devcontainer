@@ -1,18 +1,24 @@
 {
   "name": "C++ Hybrid (Noble/GCC15)",
-  "image": "ghcr.io/ray-manaloto/pixi-devcontainer:noble-stable-latest",
-  "remoteUser": "vscode",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "BASE_IMAGE": "ghcr.io/ray-manaloto/pixi-devcontainer:noble-stable-latest"
+    }
+  },
+  "remoteUser": "${localEnv:USER}",
   "updateRemoteUserUID": true,
 
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
-      "username": "vscode",
+      "username": "${localEnv:USER}",
       "userUid": "automatic",
       "userGid": "automatic",
       "installZsh": true
     },
     "ghcr.io/devcontainers/features/sshd:1": {
-      "version": "latest"
+      "version": "latest",
+      "passwordAuthentication": "false"
     },
     "ghcr.io/devcontainers-contrib/features/bun:1": {
       "version": "latest"
@@ -32,11 +38,19 @@
   ],
 
   "mounts": [
-    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind,consistency=cached"
+    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.ssh/authorized_keys,target=/home/${localEnv:USER}/.ssh/authorized_keys,type=bind,consistency=cached"
   ],
   "containerEnv": {
     "SSH_AUTH_SOCK": "/ssh-agent",
     "DOCKER_DEFAULT_PLATFORM": "linux/amd64"
+  },
+
+  "forwardPorts": [2222],
+  "portsAttributes": {
+    "2222": {
+      "label": "devcontainer-ssh"
+    }
   },
 
   "postCreateCommand": "pixi run -e dev-container init-container",
