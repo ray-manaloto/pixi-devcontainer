@@ -28,6 +28,7 @@ ROWS = [
 
 
 def main() -> None:
+    """Write the validation matrix markdown to docs/validation-matrix.md."""
     lines = [
         "# Validation Matrix",
         "",
