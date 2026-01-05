@@ -8,9 +8,17 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-'on':
+"on":
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/ci.yml"
+      - "docker/**"
+      - "scripts/**"
+      - ".devcontainer/**"
+      - "pixi.toml"
+      - "pixi.lock"
+      - "pyproject.toml"
   schedule:
     - cron: "0 4 * * 1"
   workflow_dispatch:
