@@ -78,17 +78,7 @@ lint-pylint-dup = "pylint --disable=all --enable=duplicate-code scripts"
 lint-mypy = "mypy scripts --ignore-missing-imports --implicit-reexport"
 lint-semgrep = "sh -c '[ \"${RUN_SEMGREP:-0}\" = \"1\" ] || { echo \"Skipping semgrep (set RUN_SEMGREP=1 to enable)\"; exit 0; }; docker info >/dev/null 2>&1 || { echo \"Skipping semgrep: docker daemon unavailable\"; exit 0; }; docker run --rm -v $(pwd):/src -w /src returntocorp/semgrep:latest semgrep scan --error --config auto --exclude .pixi --exclude .git --exclude build'"
 lint-shellcheck = "sh -c 'files=$(git ls-files \"*.sh\"); if [ -z \"$files\" ]; then echo \"No shell scripts; skipping shellcheck\"; else shellcheck $files; fi'"
-lint-hadolint = """python -c "from scripts import validate; import subprocess, sys
-ok = validate.ensure_hadolint()
-if not ok:
-    print('Skipping hadolint: download unavailable')
-    sys.exit(0)
-try:
-    subprocess.run(['hadolint','docker/Dockerfile'], check=True)
-except (FileNotFoundError, OSError) as exc:
-    print(f'Skipping hadolint: {exc}')
-    sys.exit(0)"
-"""
+lint-hadolint = "hadolint docker/Dockerfile"
 lint-actionlint = "actionlint"
 lint-checkov = "checkov -d docker --quiet --compact"
 lint-uv = "uv pip check --project ."
