@@ -115,13 +115,12 @@ validate = { cmd = "true", depends-on = [
   "lint",
   "tests",
 ], description = "Run all linters, static analyzers, and tests" }
+prepush = { cmd = "true", depends-on = [
+  "validate",
+  "docker-bake-print",
+], description = "Full local gate before push: lint/tests + docker bake --print" }
 build = { cmd = "python -m scripts.build", env = { PYTHONUNBUFFERED = "1" } }
 setup-dev = { cmd = "python -m scripts.setup_dev", env = { PYTHONUNBUFFERED = "1" } }
 init-container = "python -m scripts.lib.container_init"
 git-clean = { cmd = "python -c 'import subprocess, sys; out = subprocess.check_output([\"git\",\"status\",\"--porcelain\"], text=True);\nif out.strip():\n    sys.stderr.write(\"Working tree is dirty. Commit or stash changes before pushing.\\n\" + out)\n    sys.exit(1)\nprint(\"Git working tree clean\")'" }
 docker-bake-print = "docker buildx bake -f docker/docker-bake.hcl --print"
-prepush = { cmd = "true", depends-on = [
-  "git-clean",
-  "validate",
-  "docker-bake-print",
-], description = "Ensure clean git tree, run all linters/tests, and dry-run docker bake" }
