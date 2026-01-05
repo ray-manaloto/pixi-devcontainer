@@ -1,6 +1,6 @@
 {
   "name": "C++ Hybrid (Noble/GCC15)",
-  "image": "ghcr.io/my-org/cpp:noble-stable-latest",
+  "image": "ghcr.io/ray-manaloto/pixi-devcontainer:noble-stable-latest",
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
 
@@ -27,14 +27,16 @@
     "--security-opt",
     "seccomp=unconfined",
     "--network=host",
-    "--shm-size=8g"
+    "--shm-size=8g",
+    "--platform=linux/amd64"
   ],
 
   "mounts": [
     "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind,consistency=cached"
   ],
   "containerEnv": {
-    "SSH_AUTH_SOCK": "/ssh-agent"
+    "SSH_AUTH_SOCK": "/ssh-agent",
+    "DOCKER_DEFAULT_PLATFORM": "linux/amd64"
   },
 
   "postCreateCommand": "pixi run -e dev-container init-container",

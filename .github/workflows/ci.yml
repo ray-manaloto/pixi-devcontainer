@@ -84,8 +84,6 @@ jobs:
         id: build
         env:
           REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
-          CI_SKIP_PUSH: "1"
-          SKIP_PUSH: "1"
         run: |
           set -o pipefail
           pixi run -e automation build | tee "$ARTIFACTS_DIR/build.log"

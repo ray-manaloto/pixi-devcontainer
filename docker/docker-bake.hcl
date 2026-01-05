@@ -36,7 +36,10 @@ target "build" {
     BASE_IMAGE = os == "focal" ? "ghcr.io/prefix-dev/pixi:focal@${DIGEST_FOCAL}" : "ghcr.io/prefix-dev/pixi:noble@${DIGEST_NOBLE}"
     PIXI_ENV   = "${env}"
   }
-  tags = ["${REGISTRY}:${os}-${env}-${CONFIG_HASH}"]
+  tags = [
+    "${REGISTRY}:${os}-${env}-${CONFIG_HASH}",
+    "${REGISTRY}:${os}-${env}-latest",
+  ]
 }
 
 target "build-local" {
