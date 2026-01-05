@@ -1,0 +1,22 @@
+---
+# Keep dependencies current via Renovate
+name: Renovate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Renovate
+        uses: renovatebot/github-action@v40.1.5
+        with:
+          configurationFile: renovate.json
+          token: ${{ secrets.RENOVATE_TOKEN != '' && secrets.RENOVATE_TOKEN || secrets.GITHUB_TOKEN }}
