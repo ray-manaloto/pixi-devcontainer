@@ -253,6 +253,7 @@ jobs:
           out_dir.mkdir(parents=True, exist_ok=True)
 
           records = []
+          package_url = "https://github.com/users/ray-manaloto/packages/container/pixi-devcontainer"
           targets = [("focal", "stable"), ("noble", "stable")]
           for os_name, env_name in targets:
               for suffix in (config_hash, "latest"):
@@ -305,8 +306,9 @@ jobs:
           )
           lines = ["| image | status | digest | platforms | size_bytes |", "|---|---|---|---|---|"]
           for rec in records:
+              image_link = f"[{rec['image']}]({package_url})"
               lines.append(
-                  f"| {rec['image']} | {rec.get('status')} | {rec.get('digest') or 'n/a'} | "
+                  f"| {image_link} | {rec.get('status')} | {rec.get('digest') or 'n/a'} | "
                   f"{', '.join(rec.get('platforms') or []) or 'n/a'} | "
                   f"{rec.get('size_bytes_total') or 'n/a'} |",
               )
@@ -354,11 +356,16 @@ jobs:
           try:
               oci = json.loads((artifacts / "oci-metadata.json").read_text(encoding="utf-8"))
               lines.append("### OCI artifacts")
-              lines.append("| file | size_bytes |")
-              lines.append("|---|---|")
-              for img in oci.get("images", []):
-                  lines.append(f"| {img.get('file')} | {img.get('size_bytes')} |")
-              lines.append("")
+              images = oci.get("images", [])
+              if images:
+                  lines.append("| file | size_bytes |")
+                  lines.append("|---|---|")
+                  for img in images:
+                      lines.append(f"| {img.get('file')} | {img.get('size_bytes')} |")
+                  lines.append("")
+              else:
+                  lines.append("_no local OCI tarballs (push-only build)_")
+                  lines.append("")
           except FileNotFoundError:
               lines.append("_oci metadata missing_")
 
