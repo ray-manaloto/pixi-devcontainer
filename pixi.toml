@@ -141,3 +141,7 @@ validate-renovate = { cmd = "true", depends-on = [
   "lint-yamllint",
 ], description = "Renovate workflow gate: actionlint + yamllint only" }
 devcontainer-ports = { cmd = "python -m scripts.devcontainer_ports", description = "List devcontainer permutations and suggested SSH ports" }
+devcontainers-list = { cmd = "python -m scripts.devcontainer_list", description = "List devcontainer containers with status/user/ports" }
+devcontainers-stop = { cmd = "sh -c 'ids=$(docker ps -aq --filter label=devcontainer.local_folder); if [ -n \"$ids\" ]; then docker stop $ids; else echo \"No devcontainer containers\"; fi'", description = "Stop all devcontainer containers (label=devcontainer.local_folder)" }
+devcontainers-start = { cmd = "sh -c 'ids=$(docker ps -aq --filter label=devcontainer.local_folder); if [ -n \"$ids\" ]; then docker start $ids; else echo \"No devcontainer containers\"; fi'", description = "Start all devcontainer containers (label=devcontainer.local_folder)" }
+devcontainer-up = { cmd = "devcontainer up --workspace-folder . --config .devcontainer/devcontainer.json", description = "Create/start devcontainer using local config" }

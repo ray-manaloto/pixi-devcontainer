@@ -40,3 +40,7 @@ Run tasks with `pixi run -e automation <task>`. The local pre-push gate is `prep
 - `renovate-status`: `gh run list --workflow renovate.yml --limit 5 …` (shows last 5 Renovate runs)
 - `validate-renovate`: actionlint + yamllint (minimal gate for renovate workflow)
 - `devcontainer-ports`: enumerate devcontainer permutations and suggest SSH ports
+- `devcontainers-list`: list devcontainer containers (status/user/ports)
+- `devcontainers-stop`: stop all devcontainer containers (label=devcontainer.local_folder)
+- `devcontainers-start`: start all devcontainer containers (label=devcontainer.local_folder)
+- `devcontainer-up`: `devcontainer up --workspace-folder . --config .devcontainer/devcontainer.json`
