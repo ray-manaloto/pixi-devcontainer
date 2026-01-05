@@ -39,9 +39,7 @@ def main() -> None:
     for name, where, how in ROWS:
         lines.append(f"| {name} | {where} | {how} |")
 
-    Path("docs/validation-matrix.md").write_text(
-        "\n".join(lines) + "\n", encoding="utf-8"
-    )
+    Path("docs/validation-matrix.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
