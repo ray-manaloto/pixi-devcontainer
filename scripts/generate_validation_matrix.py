@@ -1,6 +1,8 @@
 """Generate docs/validation-matrix.md from the current validation list."""
 
+import os
 from pathlib import Path
+from typing import Union
 
 ROWS = [
     ("Ruff format/check", "Local + CI", "lint-ruff-format, lint-ruff"),
@@ -26,9 +28,11 @@ ROWS = [
     ("GHCR status/OCI metadata", "CI only", "build job summaries"),
 ]
 
+DEFAULT_OUTPUT = Path("docs/validation-matrix.md")
 
-def main() -> None:
-    """Write the validation matrix markdown to docs/validation-matrix.md."""
+
+def render_validation_matrix() -> str:
+    """Return the validation matrix markdown content."""
     lines = [
         "# Validation Matrix",
         "",
@@ -40,7 +44,20 @@ def main() -> None:
     for name, where, how in ROWS:
         lines.append(f"| {name} | {where} | {how} |")
 
-    Path("docs/validation-matrix.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
+
+
+def write_validation_matrix(
+    path: Union[Path, str] = DEFAULT_OUTPUT,
+) -> None:
+    """Write the validation matrix markdown to the given path."""
+    Path(path).write_text(render_validation_matrix(), encoding="utf-8")
+
+
+def main() -> None:
+    """Write the validation matrix markdown to docs/validation-matrix.md."""
+    output = os.environ.get("VALIDATION_MATRIX_PATH", DEFAULT_OUTPUT)
+    write_validation_matrix(output)
 
 
 if __name__ == "__main__":
