@@ -8,11 +8,12 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-on:
+'on':
   push:
     branches: [main]
   schedule:
     - cron: "0 4 * * 1"
+  workflow_dispatch:
 
 jobs:
   quality:
