@@ -140,3 +140,4 @@ validate-renovate = { cmd = "true", depends-on = [
   "lint-actionlint",
   "lint-yamllint",
 ], description = "Renovate workflow gate: actionlint + yamllint only" }
+devcontainer-ports = { cmd = "python -m scripts.devcontainer_ports", description = "List devcontainer permutations and suggested SSH ports" }
