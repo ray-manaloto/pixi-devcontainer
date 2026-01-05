@@ -8,23 +8,23 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-"on":
+on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/ci.yml"
-      - "docker/**"
-      - "scripts/**"
-      - ".devcontainer/**"
-      - "pixi.toml"
-      - "pixi.lock"
-      - "pyproject.toml"
+      - .github/workflows/ci.yml
+      - docker/**
+      - scripts/**
+      - .devcontainer/**
+      - pixi.toml
+      - pixi.lock
+      - pyproject.toml
   schedule:
     - cron: "0 4 * * 1"
   workflow_dispatch:
 
 jobs:
-  quality:
+  lint:
     env:
       PIXI_PLATFORM: linux-64
     runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set artifacts dir
-        run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
+        run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts-lint" >> "$GITHUB_ENV"
       - name: Prepare artifacts directory
         run: mkdir -p "$ARTIFACTS_DIR"
       - uses: prefix-dev/setup-pixi@82d477f15f3a381dbcc8adc1206ce643fe110fb7 # v0.9.3
@@ -57,105 +57,55 @@ jobs:
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
         with:
           dockerfile: docker/Dockerfile
-      # Runs the full Strict Suite
-      - name: Run validate (with reports)
+      - name: Run lint suite
         env:
           RUN_SEMGREP: "1"
+        run: |
+          set -o pipefail
+          pixi run -e automation lint | tee "$ARTIFACTS_DIR/lint.log"
+      - name: Ensure working tree clean (no generated diffs)
+        run: git diff --exit-code
+      - name: Upload lint artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: lint-${{ github.run_id }}
+          path: ${{ env.ARTIFACTS_DIR }}/**
+          if-no-files-found: warn
+
+  tests:
+    env:
+      PIXI_PLATFORM: linux-64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Set artifacts dir
+        run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts-tests" >> "$GITHUB_ENV"
+      - name: Prepare artifacts directory
+        run: mkdir -p "$ARTIFACTS_DIR"
+      - uses: prefix-dev/setup-pixi@82d477f15f3a381dbcc8adc1206ce643fe110fb7 # v0.9.3
+        with:
+          cache: true
+          locked: true
+          environments: automation
+      - name: Run tests (with coverage)
+        env:
           PYTEST_ADDOPTS: "--cov-report=xml:${ARTIFACTS_DIR}/coverage.xml --junitxml=${ARTIFACTS_DIR}/tests.xml"
         run: |
           set -o pipefail
-          pixi run -e automation validate | tee "$ARTIFACTS_DIR/validate.log"
-      - name: Generate validation summary
-        if: always()
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-
-          artifacts = Path(os.environ["ARTIFACTS_DIR"])
-          summary = {"coverage": {}, "tests": {}}
-
-          cov_xml = artifacts / "coverage.xml"
-          if cov_xml.exists():
-              root = ET.parse(cov_xml).getroot()
-              summary["coverage"] = {
-                  "line_rate": root.get("line-rate"),
-                  "branch_rate": root.get("branch-rate"),
-                  "lines_valid": root.get("lines-valid"),
-                  "lines_covered": root.get("lines-covered"),
-              }
-
-          junit_xml = artifacts / "tests.xml"
-          if junit_xml.exists():
-              suite = ET.parse(junit_xml).getroot()
-              summary["tests"] = {
-                  "tests": suite.get("tests"),
-                  "failures": suite.get("failures"),
-                  "errors": suite.get("errors"),
-                  "skipped": suite.get("skipped"),
-              }
-
-          artifacts.mkdir(parents=True, exist_ok=True)
-          (artifacts / "quality-summary.json").write_text(
-              json.dumps(summary, indent=2),
-              encoding="utf-8",
-          )
-          with (artifacts / "quality-summary.md").open("w", encoding="utf-8") as fh:
-              fh.write("| metric | value |\\n|---|---|\\n")
-              for key, value in summary.get("coverage", {}).items():
-                  fh.write(f"| coverage:{key} | {value or 'n/a'} |\\n")
-              for key, value in summary.get("tests", {}).items():
-                  fh.write(f"| tests:{key} | {value or 'n/a'} |\\n")
-          PY
-      - name: Append quality summary to job summary
-        if: always()
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
-          artifacts = Path(os.environ["ARTIFACTS_DIR"])
-          data = {}
-          try:
-              data = json.loads((artifacts / "quality-summary.json").read_text(encoding="utf-8"))
-          except FileNotFoundError:
-              pass
-
-          cov = data.get("coverage", {})
-          tests = data.get("tests", {})
-          lines = [
-              "## Quality Results",
-              "| metric | value |",
-              "|---|---|",
-              f"| coverage:line_rate | {cov.get('line_rate', 'n/a')} |",
-              f"| coverage:branch_rate | {cov.get('branch_rate', 'n/a')} |",
-              f"| coverage:lines_valid | {cov.get('lines_valid', 'n/a')} |",
-              f"| coverage:lines_covered | {cov.get('lines_covered', 'n/a')} |",
-              f"| tests:total | {tests.get('tests', 'n/a')} |",
-              f"| tests:failures | {tests.get('failures', 'n/a')} |",
-              f"| tests:errors | {tests.get('errors', 'n/a')} |",
-              f"| tests:skipped | {tests.get('skipped', 'n/a')} |",
-              "",
-              f"[Artifacts directory]({{ env.ARTIFACTS_DIR }})",
-          ]
-          with summary_path.open("a", encoding="utf-8") as handle:
-              handle.write("\n".join(lines) + "\n")
-          PY
-      - name: Ensure working tree clean (no generated diffs)
-        run: git diff --exit-code
-      - name: Upload quality artifacts
+          pixi run -e automation tests | tee "$ARTIFACTS_DIR/tests.log"
+      - name: Upload test artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: quality-${{ github.run_id }}
+          name: tests-${{ github.run_id }}
           path: ${{ env.ARTIFACTS_DIR }}/**
           if-no-files-found: warn
 
   build:
-    needs: quality
+    needs: [lint, tests]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -228,6 +178,9 @@ jobs:
 
           config_hash = os.environ.get("CONFIG_HASH", "unknown")
           registry = os.environ.get("REGISTRY", "ghcr.io/ray-manaloto/pixi-devcontainer")
+          os_name = os.environ.get("BUILD_OS", "focal")
+          env_name = os.environ.get("BUILD_ENV", "stable")
+
           artifacts = []
           for tar in Path("build").glob("*.tar"):
               stat = tar.stat()
@@ -238,8 +191,7 @@ jobs:
                       "modified": stat.st_mtime,
                   },
               )
-          os_name = os.environ.get("BUILD_OS", "focal")
-          env_name = os.environ.get("BUILD_ENV", "stable")
+
           planned = [
               {
                   "image": f"{registry}:{os_name}-{env_name}-{config_hash}",
@@ -248,6 +200,7 @@ jobs:
                   "env": env_name,
               },
           ]
+
           out_dir = Path(os.environ["ARTIFACTS_DIR"])
           out_dir.mkdir(parents=True, exist_ok=True)
           (out_dir / "oci-metadata.json").write_text(
@@ -268,55 +221,55 @@ jobs:
 
           registry = os.environ.get("REGISTRY", "ghcr.io/ray-manaloto/pixi-devcontainer")
           config_hash = os.environ.get("CONFIG_HASH", "unknown")
+          os_name = os.environ.get("BUILD_OS", "focal")
+          env_name = os.environ.get("BUILD_ENV", "stable")
           out_dir = Path(os.environ["ARTIFACTS_DIR"])
           out_dir.mkdir(parents=True, exist_ok=True)
 
-          records = []
           package_url = "https://github.com/users/ray-manaloto/packages/container/pixi-devcontainer"
-          os_name = os.environ.get("BUILD_OS", "focal")
-          env_name = os.environ.get("BUILD_ENV", "stable")
+          records = []
           for suffix in (config_hash, "latest"):
               tag = f"{registry}:{os_name}-{env_name}-{suffix}"
               entry: dict[str, object] = {
                   "image": tag,
                   "os": os_name,
-                      "env": env_name,
-                      "tag_suffix": suffix,
-                      "config_hash": config_hash,
-                      "attestations": ["provenance", "sbom"],
-                      "checked_at": dt.datetime.utcnow().isoformat(timespec="seconds") + "Z",
-                  }
-                  try:
-                      raw = subprocess.check_output(  # noqa: S603
-                          ["docker", "buildx", "imagetools", "inspect", "--raw", tag],
-                          text=True,
-                      )
-                      data = json.loads(raw)
-                      manifests = data.get("manifests") or []
-                      platforms = []
-                      sizes = []
-                      digest = None
-                      for manifest in manifests:
-                          platform = manifest.get("platform") or {}
-                          if platform:
-                              platforms.append(
-                                  f"{platform.get('os', '?')}/{platform.get('architecture', '?')}",
-                              )
-                          if manifest.get("size"):
-                              sizes.append(manifest["size"])
-                          if manifest.get("digest") and not digest:
-                              digest = manifest["digest"]
-                      entry.update(
-                          {
-                              "status": "available",
-                              "digest": digest or data.get("config", {}).get("digest"),
-                              "platforms": platforms,
-                              "size_bytes_total": sum(sizes) if sizes else None,
-                          },
-                      )
-                  except subprocess.CalledProcessError as exc:  # noqa: PERF203
-                      entry.update({"status": "inspect_failed", "error": str(exc)})
-                  records.append(entry)
+                  "env": env_name,
+                  "tag_suffix": suffix,
+                  "config_hash": config_hash,
+                  "attestations": ["provenance", "sbom"],
+                  "checked_at": dt.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+              }
+              try:
+                  raw = subprocess.check_output(  # noqa: S603
+                      ["docker", "buildx", "imagetools", "inspect", "--raw", tag],
+                      text=True,
+                  )
+                  data = json.loads(raw)
+                  manifests = data.get("manifests") or []
+                  platforms = []
+                  sizes = []
+                  digest = None
+                  for manifest in manifests:
+                      platform = manifest.get("platform") or {}
+                      if platform:
+                          platforms.append(
+                              f"{platform.get('os', '?')}/{platform.get('architecture', '?')}",
+                          )
+                      if manifest.get("size"):
+                          sizes.append(manifest["size"])
+                      if manifest.get("digest") and not digest:
+                          digest = manifest["digest"]
+                  entry.update(
+                      {
+                          "status": "available",
+                          "digest": digest or data.get("config", {}).get("digest"),
+                          "platforms": platforms,
+                          "size_bytes_total": sum(sizes) if sizes else None,
+                      },
+                  )
+              except subprocess.CalledProcessError as exc:  # noqa: PERF203
+                  entry.update({"status": "inspect_failed", "error": str(exc)})
+              records.append(entry)
 
           payload = {"images": records}
           (out_dir / "ghcr-status.json").write_text(
@@ -346,61 +299,43 @@ jobs:
           summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
           artifacts = Path(os.environ["ARTIFACTS_DIR"])
           registry = os.environ.get("REGISTRY", "ghcr.io/ray-manaloto/pixi-devcontainer")
+          config_hash = os.environ.get("CONFIG_HASH", "unknown")
+          os_name = os.environ.get("BUILD_OS", "focal")
+          env_name = os.environ.get("BUILD_ENV", "stable")
 
-          lines = ["## Build Summary"]
-
-          # Bake targets
+          ghcr_status = {}
           try:
-              plan = json.loads((artifacts / "bake-plan.json").read_text(encoding="utf-8"))
-              targets = sorted(plan.get("target", {}).keys())
-              if targets:
-                  lines.append("| bake targets |")
-                  lines.append("|---|")
-                  for t in targets:
-                      lines.append(f"| {t} |")
-                  lines.append("")
+              ghcr_status = json.loads((artifacts / "ghcr-status.json").read_text(encoding="utf-8"))
           except FileNotFoundError:
-              lines.append("_bake plan missing_")
+              pass
 
-          # GHCR status table (already pre-rendered)
-          status_md = artifacts / "ghcr-status.md"
-          if status_md.exists():
-              lines.append("### GHCR status")
-              lines.append(status_md.read_text(encoding="utf-8"))
-              lines.append("")
-          else:
-              lines.append("_ghcr status missing_")
+          lines = [
+              "## GHCR Images",
+              "| image | status | digest | platforms | size_bytes |",
+              "|---|---|---|---|---|",
+          ]
+          for rec in ghcr_status.get("images", []):
+              image_link = f"[{rec['image']}]({registry})"
+              lines.append(
+                  f"| {image_link} | {rec.get('status')} | {rec.get('digest', 'n/a')} | "
+                  f"{', '.join(rec.get('platforms') or []) or 'n/a'} | {rec.get('size_bytes_total') or 'n/a'} |",
+              )
 
-          # OCI artifacts
-          try:
-              oci = json.loads((artifacts / "oci-metadata.json").read_text(encoding="utf-8"))
-              lines.append("### OCI artifacts")
-              images = oci.get("images", [])
-              if images:
-                  lines.append("| file | size_bytes |")
-                  lines.append("|---|---|")
-                  for img in images:
-                      lines.append(f"| {img.get('file')} | {img.get('size_bytes')} |")
-                  lines.append("")
-              else:
-                  lines.append("_no local OCI tarballs (push-only build)_")
-                  lines.append("")
-          except FileNotFoundError:
-              lines.append("_oci metadata missing_")
-
-          lines.append(f"[Build log]({{ env.ARTIFACTS_DIR }}/build.log)")
-          lines.append(f"[Bake plan]({{ env.ARTIFACTS_DIR }}/bake-plan.json)")
-          lines.append(f"[Buildx info]({{ env.ARTIFACTS_DIR }}/buildx-info.txt)")
+          lines.extend(
+              [
+                  "",
+                  f"Config hash: `{config_hash}`",
+                  f"Artifacts dir: `{artifacts}`",
+                  f"Target: `{os_name}-{env_name}`",
+              ],
+          )
 
           with summary_path.open("a", encoding="utf-8") as handle:
               handle.write("\n".join(lines) + "\n")
           PY
-      - name: Upload devcontainer OCI artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: devcontainer-build-${{ steps.build.outputs.HASH || github.run_id }}
-          path: |
-            ${{ env.ARTIFACTS_DIR }}/**
-            build/*.tar
-            dist/**
-          if-no-files-found: error
+          name: build-${{ github.run_id }}-${{ matrix.os }}-${{ matrix.env }}
+          path: ${{ env.ARTIFACTS_DIR }}/**
+          if-no-files-found: warn
