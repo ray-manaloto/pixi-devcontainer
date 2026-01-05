@@ -12,3 +12,4 @@ Notes
 - Labels: `deps`.
 - Automerge: enabled for minor/patch GitHub Actions; pixi/conda automerge disabled by default (adjust via packageRules).
 - If adding new deps to pixi/pyproject, no extra config needed; regex manager matches `depName = "version"` lines in pixi.toml.
+- Pixi trigger: `pixi run -e automation renovate-dispatch` runs the full local gate (`prepush`) and then triggers `renovate.yml` via `gh workflow run renovate.yml`.
