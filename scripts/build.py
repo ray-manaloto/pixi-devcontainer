@@ -131,13 +131,18 @@ def main() -> None:  # pragma: no cover
             check=True,
         )
 
-    if os.getenv("CI") and push_enabled:
+    # Upload artifacts only when images are loaded locally; in push mode the tags may not
+    # exist in the local daemon.
+    if os.getenv("CI") and not push_enabled:
         for os_n in ["focal", "noble"]:
             for env_n in ["stable"]:
                 tag = f"{os.getenv('REGISTRY', 'ghcr.io/my-org/cpp')}:{os_n}-{env_n}-{config_hash}"
                 upload_artifacts(config_hash, os_n, env_n, tag)
     elif os.getenv("CI"):
-        console.log("Skipping artifact upload: push disabled", style="yellow")
+        console.log(
+            "Skipping artifact upload: push enabled (no local images to save)",
+            style="yellow",
+        )
 
 
 if __name__ == "__main__":
