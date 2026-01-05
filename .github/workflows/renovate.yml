@@ -31,8 +31,8 @@ jobs:
           environments: automation
       - name: Verify pixi
         run: pixi --version
-      - name: Run full local gate (prepush)
-        run: pixi run -e automation prepush
+      - name: Run renovate-specific gate
+        run: pixi run -e automation validate-renovate
       - name: Run Renovate
         # v44.2.3
         uses: renovatebot/github-action@a7e89c349a53ab0c9d8458eb85f4b415e55848e7

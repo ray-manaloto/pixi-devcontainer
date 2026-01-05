@@ -38,3 +38,4 @@ Run tasks with `pixi run -e automation <task>`. The local pre-push gate is `prep
 - `ci-watch`: `python -m scripts.gha_monitor --watch`
 - `renovate-dispatch`: depends on `prepush`, then runs `gh workflow run renovate.yml` to trigger Renovate after local validation
 - `renovate-status`: `gh run list --workflow renovate.yml --limit 5 …` (shows last 5 Renovate runs)
+- `validate-renovate`: actionlint + yamllint (minimal gate for renovate workflow)

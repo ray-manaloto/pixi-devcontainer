@@ -136,3 +136,7 @@ renovate-dispatch = { cmd = "gh workflow run renovate.yml", depends-on = [
   "prepush",
 ], description = "Run full local gate then trigger Renovate workflow_dispatch" }
 renovate-status = { cmd = "python - <<'PY'\nimport json, subprocess\nraw = subprocess.check_output([\n    \"gh\",\n    \"run\",\n    \"list\",\n    \"--workflow\",\n    \"renovate.yml\",\n    \"--limit\",\n    \"5\",\n    \"--json\",\n    \"databaseId,headSha,status,conclusion,createdAt,displayTitle\",\n], text=True)\nfor row in json.loads(raw):\n    print(\n        f\"{row['databaseId']}\\t{row['status']}\\t{row.get('conclusion','')}\\t{row['createdAt']}\\t{row['headSha']}\\t{row['displayTitle']}\"\n    )\nPY", description = "Show last 5 Renovate workflow runs (id, status, conclusion, time, SHA, title)" }
+validate-renovate = { cmd = "true", depends-on = [
+  "lint-actionlint",
+  "lint-yamllint",
+], description = "Renovate workflow gate: actionlint + yamllint only" }
