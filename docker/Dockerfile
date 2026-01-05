@@ -5,6 +5,8 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 WORKDIR /app
 
 # 1. Install Dependencies
