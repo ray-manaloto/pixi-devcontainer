@@ -34,9 +34,13 @@ jobs:
           environments: automation
       - name: Collect pixi metadata
         run: |
+          mkdir -p "$ARTIFACTS_DIR/pixi"
+          cp pixi.toml pixi.lock "$ARTIFACTS_DIR/pixi/"
           set +e
-          pixi info --json > "$ARTIFACTS_DIR/pixi-info.json" || echo '{"note":"pixi info unavailable"}' > "$ARTIFACTS_DIR/pixi-info.json"
-          pixi list --json > "$ARTIFACTS_DIR/pixi-list.json" || echo '{"note":"pixi list unavailable"}' > "$ARTIFACTS_DIR/pixi-list.json"
+          pixi info --json > "$ARTIFACTS_DIR/pixi/info.json" || echo '{"note":"pixi info unavailable"}' > "$ARTIFACTS_DIR/pixi/info.json"
+          pixi list --json > "$ARTIFACTS_DIR/pixi/list.json" || echo '{"note":"pixi list unavailable"}' > "$ARTIFACTS_DIR/pixi/list.json"
+          pixi tree -e automation > "$ARTIFACTS_DIR/pixi/tree.txt" || echo "pixi tree unavailable" > "$ARTIFACTS_DIR/pixi/tree.txt"
+          echo '{"note":"pixi manifest/diff/updates_github_actions CLI not available in pixi 0.62.2; captured manifest + lock instead."}' > "$ARTIFACTS_DIR/pixi/notes.json"
           set -e
       - name: Hadolint (Dockerfile)
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
@@ -50,6 +54,50 @@ jobs:
         run: |
           set -o pipefail
           pixi run -e automation validate | tee "$ARTIFACTS_DIR/validate.log"
+      - name: Generate validation summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          artifacts = Path(os.environ["ARTIFACTS_DIR"])
+          summary = {"coverage": {}, "tests": {}}
+
+          cov_xml = artifacts / "coverage.xml"
+          if cov_xml.exists():
+              root = ET.parse(cov_xml).getroot()
+              summary["coverage"] = {
+                  "line_rate": root.get("line-rate"),
+                  "branch_rate": root.get("branch-rate"),
+                  "lines_valid": root.get("lines-valid"),
+                  "lines_covered": root.get("lines-covered"),
+              }
+
+          junit_xml = artifacts / "tests.xml"
+          if junit_xml.exists():
+              suite = ET.parse(junit_xml).getroot()
+              summary["tests"] = {
+                  "tests": suite.get("tests"),
+                  "failures": suite.get("failures"),
+                  "errors": suite.get("errors"),
+                  "skipped": suite.get("skipped"),
+              }
+
+          artifacts.mkdir(parents=True, exist_ok=True)
+          (artifacts / "quality-summary.json").write_text(
+              json.dumps(summary, indent=2),
+              encoding="utf-8",
+          )
+          with (artifacts / "quality-summary.md").open("w", encoding="utf-8") as fh:
+              fh.write("| metric | value |\\n|---|---|\\n")
+              for key, value in summary.get("coverage", {}).items():
+                  fh.write(f"| coverage:{key} | {value or 'n/a'} |\\n")
+              for key, value in summary.get("tests", {}).items():
+                  fh.write(f"| tests:{key} | {value or 'n/a'} |\\n")
+          PY
       - name: Ensure working tree clean (no generated diffs)
         run: git diff --exit-code
       - name: Upload quality artifacts
@@ -64,36 +112,53 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
       - name: Set artifacts dir
         run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
+      - name: Prepare artifacts directory
+        run: mkdir -p "$ARTIFACTS_DIR" build
       - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
           cache: true
           locked: true
           environments: automation
       - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+      - name: Login to GHCR
+        uses: docker/login-action@2f070e916c7412154c510d6c8b4cb5cc27e0d1ee # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Bake plan
         run: |
-          mkdir -p "$ARTIFACTS_DIR" build
           docker buildx bake -f docker/docker-bake.hcl --print > "$ARTIFACTS_DIR/bake-plan.json"
-      - name: Build devcontainer images (no push)
+      - name: Build devcontainer images
         id: build
-        env:
-          REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
         run: |
           set -o pipefail
           pixi run -e automation build | tee "$ARTIFACTS_DIR/build.log"
+      - name: Export config hash for downstream steps
+        if: always()
+        env:
+          HASH: ${{ steps.build.outputs.HASH || 'unknown' }}
+        run: printf 'CONFIG_HASH=%s\n' "$HASH" >> "$GITHUB_ENV"
       - name: Summarize OCI artifacts
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           import os
 
+          config_hash = os.environ.get("CONFIG_HASH", "unknown")
+          registry = os.environ.get("REGISTRY", "ghcr.io/ray-manaloto/pixi-devcontainer")
           artifacts = []
           for tar in Path("build").glob("*.tar"):
               stat = tar.stat()
@@ -104,12 +169,99 @@ jobs:
                       "modified": stat.st_mtime,
                   },
               )
+          planned = []
+          for os_name in ("focal", "noble"):
+              for env_name in ("stable",):
+                  planned.append(
+                      {
+                          "image": f"{registry}:{os_name}-{env_name}-{config_hash}",
+                          "latest": f"{registry}:{os_name}-{env_name}-latest",
+                          "os": os_name,
+                          "env": env_name,
+                      },
+                  )
           out_dir = Path(os.environ["ARTIFACTS_DIR"])
           out_dir.mkdir(parents=True, exist_ok=True)
           (out_dir / "oci-metadata.json").write_text(
-              json.dumps({"images": artifacts}, indent=2),
+              json.dumps({"images": artifacts, "planned_tags": planned}, indent=2),
               encoding="utf-8",
           )
+          PY
+      - name: Capture GHCR upload status
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+        run: |
+          python - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          registry = os.environ.get("REGISTRY", "ghcr.io/ray-manaloto/pixi-devcontainer")
+          config_hash = os.environ.get("CONFIG_HASH", "unknown")
+          out_dir = Path(os.environ["ARTIFACTS_DIR"])
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          records = []
+          targets = [("focal", "stable"), ("noble", "stable")]
+          for os_name, env_name in targets:
+              for suffix in (config_hash, "latest"):
+                  tag = f"{registry}:{os_name}-{env_name}-{suffix}"
+                  entry: dict[str, object] = {
+                      "image": tag,
+                      "os": os_name,
+                      "env": env_name,
+                      "tag_suffix": suffix,
+                      "config_hash": config_hash,
+                      "attestations": ["provenance", "sbom"],
+                      "checked_at": dt.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                  }
+                  try:
+                      raw = subprocess.check_output(  # noqa: S603
+                          ["docker", "buildx", "imagetools", "inspect", "--raw", tag],
+                          text=True,
+                      )
+                      data = json.loads(raw)
+                      manifests = data.get("manifests") or []
+                      platforms = []
+                      sizes = []
+                      digest = None
+                      for manifest in manifests:
+                          platform = manifest.get("platform") or {}
+                          if platform:
+                              platforms.append(
+                                  f"{platform.get('os', '?')}/{platform.get('architecture', '?')}",
+                              )
+                          if manifest.get("size"):
+                              sizes.append(manifest["size"])
+                          if manifest.get("digest") and not digest:
+                              digest = manifest["digest"]
+                      entry.update(
+                          {
+                              "status": "available",
+                              "digest": digest or data.get("config", {}).get("digest"),
+                              "platforms": platforms,
+                              "size_bytes_total": sum(sizes) if sizes else None,
+                          },
+                      )
+                  except subprocess.CalledProcessError as exc:  # noqa: PERF203
+                      entry.update({"status": "inspect_failed", "error": str(exc)})
+                  records.append(entry)
+
+          payload = {"images": records}
+          (out_dir / "ghcr-status.json").write_text(
+              json.dumps(payload, indent=2),
+              encoding="utf-8",
+          )
+          lines = ["| image | status | digest | platforms | size_bytes |", "|---|---|---|---|---|"]
+          for rec in records:
+              lines.append(
+                  f"| {rec['image']} | {rec.get('status')} | {rec.get('digest') or 'n/a'} | "
+                  f"{', '.join(rec.get('platforms') or []) or 'n/a'} | "
+                  f"{rec.get('size_bytes_total') or 'n/a'} |",
+              )
+          (out_dir / "ghcr-status.md").write_text("\n".join(lines), encoding="utf-8")
           PY
       - name: Upload devcontainer OCI artifacts
         uses: actions/upload-artifact@v4
