@@ -39,3 +39,11 @@ Questions
    - Any recommendations for registry cache hints or manifest reuse to avoid redundant rebuilds?
 
 Please respond with concrete edits: file paths + line numbers, exact bake flags or cache scopes, and any new steps to add/remove. The objective is fewer rebuilds, deterministic tags, and richer but efficient artifact generation. 
+
+Follow-up for pixi validation parity
+------------------------------------
+Please also advise on aligning pixi-based validations between local and CI:
+- How to enforce platform consistency (e.g., PIXI_PLATFORM=linux-64) while allowing macOS developers to run the full gate.
+- Which pixi tasks should be the canonical gates (lint, tests, prepush) and any CI-specific additions (push vs load) that should be documented.
+- How to avoid CI/local drift for tools like actionlint/hadolint/semgrep/typos (e.g., dockerized tools, env vars).
+- Any recommended pixi task wiring or manifest tweaks to ensure failures (e.g., missing tools, platform solves) are caught locally before GHA.
