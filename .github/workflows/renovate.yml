@@ -29,8 +29,8 @@ jobs:
           cache: true
           locked: true
           environments: automation
-      - name: Pixi lint for renovate workflow
-        run: pixi run -e automation lint
+      - name: Run full local gate (prepush)
+        run: pixi run -e automation prepush
       - name: Run Renovate
         # v44.2.3
         uses: renovatebot/github-action@a7e89c349a53ab0c9d8458eb85f4b415e55848e7
