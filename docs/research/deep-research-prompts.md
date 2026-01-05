@@ -47,3 +47,10 @@ Please also advise on aligning pixi-based validations between local and CI:
 - Which pixi tasks should be the canonical gates (lint, tests, prepush) and any CI-specific additions (push vs load) that should be documented.
 - How to avoid CI/local drift for tools like actionlint/hadolint/semgrep/typos (e.g., dockerized tools, env vars).
 - Any recommended pixi task wiring or manifest tweaks to ensure failures (e.g., missing tools, platform solves) are caught locally before GHA.
+
+New follow-up questions to ask the deep research agent (GHCR + validation parity)
+- For GHCR pushes with attestations, what exact repo/org settings and token scopes are required so `docker buildx bake --push` to `ghcr.io/ray-manaloto/pixi-devcontainer` never 403s? Spell out whether `GITHUB_TOKEN` is sufficient with “Read and write” workflow permissions or if `GHCR_PAT` with `write:packages` must be used; include any org visibility/“trusted publisher” knobs.
+- Confirm the best way to pin native linters in Pixi across linux-64/osx-arm64: should we prefer conda-forge for actionlint/hadolint/typos and PyPI for semgrep? If a tool is missing on one platform, what’s the recommended fallback (dockerized task vs. optional skip env)?
+- Should we add `[system-requirements]` in `pixi.toml` to fail fast on unsupported hosts (e.g., macOS version, glibc floor)? Provide a minimal snippet we should commit.
+- What pre-flight checks belong in `scripts.validate` to fail fast locally (e.g., `shutil.which` for linters, verifying docker daemon and buildx builder) before running the full gate?
+- Is there any buildx/bake flag change recommended for GHCR + attestations to reduce push flakes (e.g., retry settings, `--metadata-file` usage, attestation-specific caching)?
