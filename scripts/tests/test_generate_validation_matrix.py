@@ -1,7 +1,8 @@
 """Tests for the validation matrix generator."""
 
-from _pytest.monkeypatch import MonkeyPatch
 from pathlib import Path
+
+from _pytest.monkeypatch import MonkeyPatch
 
 from scripts import generate_validation_matrix as gvm
 
