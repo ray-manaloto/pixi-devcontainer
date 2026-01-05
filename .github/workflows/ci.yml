@@ -100,6 +100,42 @@ jobs:
               for key, value in summary.get("tests", {}).items():
                   fh.write(f"| tests:{key} | {value or 'n/a'} |\\n")
           PY
+      - name: Append quality summary to job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          artifacts = Path(os.environ["ARTIFACTS_DIR"])
+          data = {}
+          try:
+              data = json.loads((artifacts / "quality-summary.json").read_text(encoding="utf-8"))
+          except FileNotFoundError:
+              pass
+
+          cov = data.get("coverage", {})
+          tests = data.get("tests", {})
+          lines = [
+              "## Quality Results",
+              "| metric | value |",
+              "|---|---|",
+              f"| coverage:line_rate | {cov.get('line_rate', 'n/a')} |",
+              f"| coverage:branch_rate | {cov.get('branch_rate', 'n/a')} |",
+              f"| coverage:lines_valid | {cov.get('lines_valid', 'n/a')} |",
+              f"| coverage:lines_covered | {cov.get('lines_covered', 'n/a')} |",
+              f"| tests:total | {tests.get('tests', 'n/a')} |",
+              f"| tests:failures | {tests.get('failures', 'n/a')} |",
+              f"| tests:errors | {tests.get('errors', 'n/a')} |",
+              f"| tests:skipped | {tests.get('skipped', 'n/a')} |",
+              "",
+              f"[Artifacts directory]({{ env.ARTIFACTS_DIR }})",
+          ]
+          with summary_path.open("a", encoding="utf-8") as handle:
+              handle.write("\n".join(lines) + "\n")
+          PY
       - name: Ensure working tree clean (no generated diffs)
         run: git diff --exit-code
       - name: Upload quality artifacts
@@ -132,6 +168,8 @@ jobs:
           locked: true
           environments: automation
       - uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
+      - name: Capture buildx info
+        run: docker buildx inspect > "$ARTIFACTS_DIR/buildx-info.txt"
       - name: Login to GHCR
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
@@ -265,6 +303,63 @@ jobs:
                   f"{rec.get('size_bytes_total') or 'n/a'} |",
               )
           (out_dir / "ghcr-status.md").write_text("\n".join(lines), encoding="utf-8")
+          PY
+      - name: Append build summary to job summary
+        if: always()
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          artifacts = Path(os.environ["ARTIFACTS_DIR"])
+          registry = os.environ.get("REGISTRY", "ghcr.io/ray-manaloto/pixi-devcontainer")
+
+          lines = ["## Build Summary"]
+
+          # Bake targets
+          try:
+              plan = json.loads((artifacts / "bake-plan.json").read_text(encoding="utf-8"))
+              targets = sorted(plan.get("target", {}).keys())
+              if targets:
+                  lines.append("| bake targets |")
+                  lines.append("|---|")
+                  for t in targets:
+                      lines.append(f"| {t} |")
+                  lines.append("")
+          except FileNotFoundError:
+              lines.append("_bake plan missing_")
+
+          # GHCR status table (already pre-rendered)
+          status_md = artifacts / "ghcr-status.md"
+          if status_md.exists():
+              lines.append("### GHCR status")
+              lines.append(status_md.read_text(encoding="utf-8"))
+              lines.append("")
+          else:
+              lines.append("_ghcr status missing_")
+
+          # OCI artifacts
+          try:
+              oci = json.loads((artifacts / "oci-metadata.json").read_text(encoding="utf-8"))
+              lines.append("### OCI artifacts")
+              lines.append("| file | size_bytes |")
+              lines.append("|---|---|")
+              for img in oci.get("images", []):
+                  lines.append(f"| {img.get('file')} | {img.get('size_bytes')} |")
+              lines.append("")
+          except FileNotFoundError:
+              lines.append("_oci metadata missing_")
+
+          lines.append(f"[Build log]({{ env.ARTIFACTS_DIR }}/build.log)")
+          lines.append(f"[Bake plan]({{ env.ARTIFACTS_DIR }}/bake-plan.json)")
+          lines.append(f"[Buildx info]({{ env.ARTIFACTS_DIR }}/buildx-info.txt)")
+
+          with summary_path.open("a", encoding="utf-8") as handle:
+              handle.write("\n".join(lines) + "\n")
           PY
       - name: Upload devcontainer OCI artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
