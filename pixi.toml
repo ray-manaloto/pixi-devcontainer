@@ -32,7 +32,6 @@ shellcheck = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-testinfra = "*"
-
 [feature.automation.pypi-dependencies]
 ty = "*"
 zizmor = "*"
