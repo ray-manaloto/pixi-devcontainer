@@ -3,7 +3,7 @@
 # checkov:skip=CKV_DOCKER_3: Base image defines user
 # syntax=docker/dockerfile:1
 
-ARG BASE_IMAGE
+ARG BASE_IMAGE=ghcr.io/prefix-dev/pixi:noble
 
 FROM ${BASE_IMAGE} AS builder
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

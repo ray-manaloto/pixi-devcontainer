@@ -181,7 +181,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PAT != '' && secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
       - name: Bake plan
         run: |
           docker buildx bake -f docker/docker-bake.hcl --print > "$ARTIFACTS_DIR/bake-plan.json"
