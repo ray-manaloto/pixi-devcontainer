@@ -2,10 +2,19 @@
 # Keep dependencies current via Renovate
 name: Renovate
 
-'on':
+"on":
   workflow_dispatch:
   schedule:
     - cron: "0 */6 * * *"  # every 6 hours
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/renovate.yml"
+      - "renovate.json"
+      - ".github/renovate.json"
+      - "pyproject.toml"
+      - "pixi.toml"
+      - "pixi.lock"
 
 permissions:
   contents: write
