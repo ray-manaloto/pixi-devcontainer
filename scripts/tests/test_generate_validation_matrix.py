@@ -1,5 +1,6 @@
 """Tests for the validation matrix generator."""
 
+from _pytest.monkeypatch import MonkeyPatch
 from pathlib import Path
 
 from scripts import generate_validation_matrix as gvm
@@ -27,7 +28,7 @@ def test_write_validation_matrix(tmp_path: Path) -> None:
     assert out_file.read_text(encoding="utf-8") == gvm.render_validation_matrix()
 
 
-def test_main_respects_output_env(tmp_path: Path, monkeypatch) -> None:
+def test_main_respects_output_env(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """Cover the CLI entrypoint while isolating the output path."""
     target = tmp_path / "custom.md"
     monkeypatch.setenv("VALIDATION_MATRIX_PATH", str(target))

@@ -2,7 +2,6 @@
 
 import os
 from pathlib import Path
-from typing import Union
 
 ROWS = [
     ("Ruff format/check", "Local + CI", "lint-ruff-format, lint-ruff"),
@@ -48,7 +47,7 @@ def render_validation_matrix() -> str:
 
 
 def write_validation_matrix(
-    path: Union[Path, str] = DEFAULT_OUTPUT,
+    path: Path | str = DEFAULT_OUTPUT,
 ) -> None:
     """Write the validation matrix markdown to the given path."""
     Path(path).write_text(render_validation_matrix(), encoding="utf-8")
