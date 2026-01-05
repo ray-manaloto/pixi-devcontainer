@@ -152,6 +152,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
     env:
       PIXI_PLATFORM: linux-64
       REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
