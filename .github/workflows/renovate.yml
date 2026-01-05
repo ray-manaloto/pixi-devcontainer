@@ -13,6 +13,8 @@ permissions:
 
 jobs:
   renovate:
+    env:
+      PIXI_PLATFORM: linux-64
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,6 +22,13 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           persist-credentials: false
+      - name: Setup pixi
+        # v0.9.3
+        uses: prefix-dev/setup-pixi@82d477f15f3a381dbcc8adc1206ce643fe110fb7
+        with:
+          cache: true
+          locked: true
+          environments: automation
       - name: Pixi lint for renovate workflow
         run: pixi run -e automation lint
       - name: Run Renovate
