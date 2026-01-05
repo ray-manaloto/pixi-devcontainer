@@ -29,6 +29,8 @@ jobs:
           cache: true
           locked: true
           environments: automation
+      - name: Verify pixi
+        run: pixi --version
       - name: Run full local gate (prepush)
         run: pixi run -e automation prepush
       - name: Run Renovate

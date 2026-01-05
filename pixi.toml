@@ -135,3 +135,4 @@ docs-validation-matrix = "python -m scripts.generate_validation_matrix"
 renovate-dispatch = { cmd = "gh workflow run renovate.yml", depends-on = [
   "prepush",
 ], description = "Run full local gate then trigger Renovate workflow_dispatch" }
+renovate-status = { cmd = "gh run list --workflow renovate.yml --limit 5 --json databaseId,headSha,status,conclusion,createdAt,displayTitle --template '{{range .}}{{.databaseId}}\t{{.status}}\t{{.conclusion}}\t{{.createdAt}}\t{{.headSha}}\t{{.displayTitle}}\n{{end}}'", description = "Show last 5 Renovate workflow runs (id, status, conclusion, time, SHA, title)" }
