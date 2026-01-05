@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from typing import Any
+
+DOCKER = shutil.which("docker") or "/usr/bin/docker"
 
 
 def _docker_json(cmd: list[str]) -> dict:
@@ -15,9 +18,9 @@ def _docker_json(cmd: list[str]) -> dict:
 
 def get_devcontainer_ids() -> list[str]:
     """Return container IDs labeled as devcontainers."""
-    raw = subprocess.check_output(
+    raw = subprocess.check_output(  # noqa: S603
         [
-            "/usr/bin/docker",
+            DOCKER,
             "ps",
             "-a",
             "--filter",
@@ -45,6 +48,10 @@ def render_ports(ports: dict[str, Any]) -> str:
 
 def main() -> None:
     """List devcontainer containers with status, user, and ports."""
+    if not shutil.which("docker"):
+        sys.stdout.write("docker not found on PATH; cannot list devcontainers\n")
+        raise SystemExit(1)
+
     ids = get_devcontainer_ids()
     if not ids:
         sys.stdout.write("No devcontainer containers found (label=devcontainer.local_folder)\n")
@@ -54,7 +61,7 @@ def main() -> None:
         "name\tstatus\tuser\tports",
     ]
     for cid in ids:
-        info = _docker_json(["docker", "inspect", cid])
+        info = _docker_json([DOCKER, "inspect", cid])
         if not info:
             continue
         entry = info[0]
