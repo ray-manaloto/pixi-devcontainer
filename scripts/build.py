@@ -6,11 +6,9 @@ import os
 import subprocess
 from pathlib import Path
 
-import boto3
 from rich.console import Console
 
 console = Console()
-S3_BUCKET = os.getenv("S3_BUCKET", "my-artifacts")
 BASE_IMAGES = {
     "focal": "ghcr.io/prefix-dev/pixi:focal",
     "noble": "ghcr.io/prefix-dev/pixi:noble",
@@ -58,28 +56,10 @@ def calculate_hash(digests: dict[str, str]) -> str:
 
 
 def upload_artifacts(
-    config_hash: str,
-    os_name: str,
-    env: str,
-    tag: str,
+    *_: str,
 ) -> None:  # pragma: no cover
-    """Upload built images and pixi packs to S3 for later reuse."""
-    console.log(f"📤 Uploading artifacts for {tag}...")
-    s3 = boto3.client("s3")
-
-    # 1. Docker Save
-    img_file = f"{os_name}-{env}.tar"
-    subprocess.run(["docker", "save", "-o", img_file, tag], check=True)  # noqa: S603,S607
-    s3.upload_file(img_file, S3_BUCKET, f"images/{config_hash}/{img_file}")
-    Path(img_file).unlink(missing_ok=True)
-
-    # 2. Pixi Pack Extraction
-    pack_file = "environment.tar.gz"
-    cid = subprocess.check_output(["docker", "create", tag]).decode().strip()  # noqa: S603,S607
-    subprocess.run(["docker", "cp", f"{cid}:/app/environment.tar.gz", pack_file], check=True)  # noqa: S603,S607
-    subprocess.run(["docker", "rm", "-v", cid], check=True)  # noqa: S603,S607
-    s3.upload_file(pack_file, S3_BUCKET, f"packs/{config_hash}/{os_name}-{env}.tar.gz")
-    Path(pack_file).unlink(missing_ok=True)
+    """Skip artifact upload; handled by BuildKit export target."""
+    console.log("Artifact upload skipped (handled by artifacts target)", style="yellow")
 
 
 def main() -> None:  # pragma: no cover
@@ -105,43 +85,30 @@ def main() -> None:  # pragma: no cover
     )
 
     skip_push = os.getenv("CI_SKIP_PUSH") == "1" or os.getenv("SKIP_PUSH") == "1"
-    push_enabled = bool(os.getenv("CI")) and not skip_push
+    is_ci = bool(os.getenv("CI"))
+    push_enabled = is_ci and not skip_push
 
     base_cmd = ["docker", "buildx", "bake", "-f", "docker/docker-bake.hcl"]
-    load_target = "build-local"
 
     if push_enabled:
-        try:
-            subprocess.run(  # noqa: S603
-                [*base_cmd, "build", "--push"],
-                env=env,
-                check=True,
-            )
-        except subprocess.CalledProcessError:
-            console.log("⚠️ buildx push failed; retrying with local load", style="yellow")
-            subprocess.run(  # noqa: S603
-                [*base_cmd, load_target],
-                env=env,
-                check=True,
-            )
-    else:
+        # CI: push multi-arch images and export artifacts
         subprocess.run(  # noqa: S603
-            [*base_cmd, load_target],
+            [*base_cmd, "default", "--push"],
             env=env,
             check=True,
         )
-
-    # Upload artifacts only when images are loaded locally; in push mode the tags may not
-    # exist in the local daemon.
-    if os.getenv("CI") and not push_enabled:
-        for os_n in ["focal", "noble"]:
-            for env_n in ["stable"]:
-                tag = f"{os.getenv('REGISTRY', 'ghcr.io/my-org/cpp')}:{os_n}-{env_n}-{config_hash}"
-                upload_artifacts(config_hash, os_n, env_n, tag)
-    elif os.getenv("CI"):
-        console.log(
-            "Skipping artifact upload: push enabled (no local images to save)",
-            style="yellow",
+    else:
+        # Local or CI with push disabled: load single-arch image only
+        subprocess.run(  # noqa: S603
+            [
+                *base_cmd,
+                "image",
+                "--load",
+                "--set",
+                "*.platforms=linux/amd64",
+            ],
+            env=env,
+            check=True,
         )
 
 

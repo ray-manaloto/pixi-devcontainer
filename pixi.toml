@@ -62,6 +62,7 @@ bat = "*"
 ripgrep = "*"
 direnv = "*"
 
+
 # --- Environments ---
 [environments]
 automation = ["automation"]
@@ -75,7 +76,7 @@ lint-ty = "ty check --python .pixi/envs/automation/bin/python scripts --exclude 
 lint-vulture = "vulture scripts docker"
 lint-pylint-dup = "pylint --disable=all --enable=duplicate-code scripts"
 lint-mypy = "mypy scripts --ignore-missing-imports --implicit-reexport"
-lint-semgrep = "sh -c '[ \"${RUN_SEMGREP:-0}\" = \"1\" ] || { echo \"Skipping semgrep (set RUN_SEMGREP=1 to enable)\"; exit 0; }; docker info >/dev/null 2>&1 || { echo \"Skipping semgrep: docker daemon unavailable\"; exit 0; }; docker run --rm -v $(pwd):/src -w /src returntocorp/semgrep:latest semgrep scan --error --config auto --exclude .pixi --exclude .git --exclude build'"
+lint-semgrep = "sh -c '[ \"${RUN_SEMGREP:-1}\" = \"1\" ] || { echo \"Skipping semgrep (set RUN_SEMGREP=1 to enable)\"; exit 0; }; docker info >/dev/null 2>&1 || { echo \"Skipping semgrep: docker daemon unavailable\"; exit 0; }; docker run --rm -v $(pwd):/src -w /src returntocorp/semgrep:latest semgrep scan --error --config auto --exclude .pixi --exclude .git --exclude build'"
 lint-shellcheck = "sh -c 'files=$(git ls-files \"*.sh\"); if [ -z \"$files\" ]; then echo \"No shell scripts; skipping shellcheck\"; else shellcheck $files; fi'"
 lint-hadolint = "sh -c 'docker run --rm -i hadolint/hadolint < docker/Dockerfile'"
 lint-actionlint = "actionlint"
