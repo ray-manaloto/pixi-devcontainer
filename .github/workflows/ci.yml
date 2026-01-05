@@ -148,6 +148,11 @@ jobs:
   build:
     needs: quality
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [focal, noble]
+        env: [stable]
     permissions:
       contents: read
       packages: write
@@ -156,12 +161,14 @@ jobs:
     env:
       PIXI_PLATFORM: linux-64
       REGISTRY: ghcr.io/ray-manaloto/pixi-devcontainer
+      BUILD_OS: ${{ matrix.os }}
+      BUILD_ENV: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
       - name: Set artifacts dir
-        run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
+        run: echo "ARTIFACTS_DIR=$RUNNER_TEMP/artifacts-${{ matrix.os }}-${{ matrix.env }}" >> "$GITHUB_ENV"
       - name: Prepare artifacts directory
         run: mkdir -p "$ARTIFACTS_DIR" build
       - uses: prefix-dev/setup-pixi@82d477f15f3a381dbcc8adc1206ce643fe110fb7 # v0.9.3
@@ -186,11 +193,15 @@ jobs:
           password: ${{ secrets.GHCR_PAT != '' && secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
       - name: Bake plan
         run: |
-          docker buildx bake -f docker/docker-bake.hcl --print > "$ARTIFACTS_DIR/bake-plan.json"
+          docker buildx bake -f docker/docker-bake.hcl \
+            image-${{ matrix.os }}-${{ matrix.env }} \
+            artifact-${{ matrix.os }}-${{ matrix.env }} \
+            --print > "$ARTIFACTS_DIR/bake-plan.json"
       - name: Build devcontainer images
         id: build
         run: |
           set -o pipefail
+          BUILD_TARGETS="image-${BUILD_OS}-${BUILD_ENV} artifact-${BUILD_OS}-${BUILD_ENV}" \
           pixi run -e automation build | tee "$ARTIFACTS_DIR/build.log"
       - name: Export config hash for downstream steps
         if: always()
@@ -218,17 +229,16 @@ jobs:
                       "modified": stat.st_mtime,
                   },
               )
-          planned = []
-          for os_name in ("focal", "noble"):
-              for env_name in ("stable",):
-                  planned.append(
-                      {
-                          "image": f"{registry}:{os_name}-{env_name}-{config_hash}",
-                          "latest": f"{registry}:{os_name}-{env_name}-latest",
-                          "os": os_name,
-                          "env": env_name,
-                      },
-                  )
+          os_name = os.environ.get("BUILD_OS", "focal")
+          env_name = os.environ.get("BUILD_ENV", "stable")
+          planned = [
+              {
+                  "image": f"{registry}:{os_name}-{env_name}-{config_hash}",
+                  "latest": f"{registry}:{os_name}-{env_name}-latest",
+                  "os": os_name,
+                  "env": env_name,
+              },
+          ]
           out_dir = Path(os.environ["ARTIFACTS_DIR"])
           out_dir.mkdir(parents=True, exist_ok=True)
           (out_dir / "oci-metadata.json").write_text(
@@ -254,13 +264,13 @@ jobs:
 
           records = []
           package_url = "https://github.com/users/ray-manaloto/packages/container/pixi-devcontainer"
-          targets = [("focal", "stable"), ("noble", "stable")]
-          for os_name, env_name in targets:
-              for suffix in (config_hash, "latest"):
-                  tag = f"{registry}:{os_name}-{env_name}-{suffix}"
-                  entry: dict[str, object] = {
-                      "image": tag,
-                      "os": os_name,
+          os_name = os.environ.get("BUILD_OS", "focal")
+          env_name = os.environ.get("BUILD_ENV", "stable")
+          for suffix in (config_hash, "latest"):
+              tag = f"{registry}:{os_name}-{env_name}-{suffix}"
+              entry: dict[str, object] = {
+                  "image": tag,
+                  "os": os_name,
                       "env": env_name,
                       "tag_suffix": suffix,
                       "config_hash": config_hash,
