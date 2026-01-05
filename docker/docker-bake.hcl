@@ -18,7 +18,7 @@ target "secure" {
 
   # 🔒 Attestations: SBOM + Provenance
   attest = [
-    "type=provenance,mode=max",
+    "type=provenance,mode=min",
     "type=sbom"
   ]
 }
